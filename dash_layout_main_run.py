@@ -3,68 +3,31 @@ import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output
 
 from app import app
-from styles.styles import colors, CONTENT_STYLE, DASH_STYLE
-from pages.data_visualization.scenarios import html_div_scenariooverview, html_div_scenariovisualize
-from pages.data_visualization.risk_allocation import html_div_risk_allocation_overview, html_div_risk_allocation
-from pages.data_visualization.lmps import html_div_lmps_overview, html_div_lmps
-from pages.data_download.data_download import html_div_datadownload
-from pages.next_steps import html_div_next_steps
-from pages.people import html_div_pi, html_div_staff, html_div_advisors
-from pages.home import html_div_home
-from pages.perform import html_div_perform
+from styles.styles import colors, CONTENT_STYLE, DASH_STYLE, TITLE_STYLE, MARKDOWN_STYLE
+from pages.data_visualization.scenarios import html_div_scenariovisualize
+from pages.data_visualization.risk_allocation import html_div_risk_allocation
+from pages.data_visualization.lmps import html_div_lmps
 
 projecturl = 'https://orfeus.princeton.edu/'
 
 navbar = dbc.NavbarSimple(
     children=[
-        # dbc.Button("Sidebar", outline=True, color="secondary",
-        #            className="mr-1", id="btn_sidebar"),
-        dbc.NavItem(dbc.NavLink("Home", href="/")),
-
         dbc.DropdownMenu(
             children=[
-                dbc.DropdownMenuItem("People", header=True),
-                dbc.DropdownMenuItem("Principal Investigators",
-                                     href="/principalinvestigators"),
-                dbc.DropdownMenuItem("Research Staff",
-                                     href="/researchstaff"),
-                dbc.DropdownMenuItem("Advisors",
-                                     href="/advisors")
-            ],
-            nav=True,
-            in_navbar=True,
-            label='People',
-        ),
-
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Data Visualization", header=True),
+                dbc.DropdownMenuItem("Data Visualization", href="/"),
                 dbc.DropdownMenuItem("Scenarios Visualization", href="/scenariovisualize"),
-                dbc.DropdownMenuItem("Risk Allocation Plot", href="riskallocplot"),
-                dbc.DropdownMenuItem("LMP Geographical Visualization", href="lmpplot")
+                dbc.DropdownMenuItem("Risk Allocation Plot", href="/riskallocplot"),
+                dbc.DropdownMenuItem("LMP Geographical Visualization", href="/lmpplot")
             ],
             nav=True,
             in_navbar=True,
             label="Data Visualization",
         ),
-
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Data Download", header=True),
-                dbc.DropdownMenuItem("Data Download", href="/datadownload"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Data Download",
-        ),
-        dbc.NavItem(dbc.NavLink("Next Steps", href="/nextsteps")),
-        dbc.NavItem(dbc.NavLink("PERFORM", href="/perform")),
     ],
-    brand=" Operational Risk Financialization of Electricity Under Stochasticity",
-    brand_href="#",
-    color=colors['heavybackground'],
-    dark=True,
-    # fixed='top',
+    brand="ORFEUS Data Visualization",
+    brand_href="/",
+    color=colors['background_navgbar'],
+    dark=False,
     fluid=True
 )
 
@@ -81,66 +44,49 @@ app.layout = html.Div(style=DASH_STYLE,
                       ])
 
 
+# Landing page for Data Visualization
+html_div_datavis_landing = html.Div(children=[
+    html.H1("Data Visualization", style=TITLE_STYLE),
+    html.Div([
+        dcc.Markdown(
+            children=(
+                "Our data visualization suite includes Scenarios Visualization with options for day, "
+                "asset type, and asset ID, Risk Allocation Plot, and LMP Geographic Plots to explore "
+                "how LMPs distribute geographically."
+            ),
+            style=MARKDOWN_STYLE,
+        ),
+        html.Hr(),
+        html.Ul([
+            html.Li(html.A("Scenarios Visualization", href="/scenariovisualize")),
+            html.Li(html.A("Risk Allocation Plot", href="/riskallocplot")),
+            html.Li(html.A("LMP Geographical Visualization", href="/lmpplot")),
+        ]),
+    ], style={'padding': '20px'})
+], style=CONTENT_STYLE)
+
+
 @app.callback(
     Output('page-content', 'children'),
     [Input('url', 'pathname')]
 )
 def render_page_content(pathname):
-    if pathname == '/':
-        return [
-            html_div_home
-        ]
-    elif pathname == '/scenariooverview':
-        return [
-                html_div_scenariooverview
-        ]
-
+    if pathname == '/' or pathname is None:
+        return [html_div_datavis_landing]
     elif pathname == '/scenariovisualize':
         return [
                 html_div_scenariovisualize
-        ]
-    elif pathname == '/riskallocoverview':
-        return [
-            html_div_risk_allocation_overview
         ]
     elif pathname == '/riskallocplot':
         return [
             html_div_risk_allocation
         ]
-    elif pathname == '/lmpoverview':
-        return[
-                html_div_lmps_overview
-        ]
-
     elif pathname == '/lmpplot':
         return [
             html_div_lmps
         ]
-
-    elif pathname == '/datadownload':
-        return [
-            html_div_datadownload
-        ]
-    elif pathname == '/nextsteps':
-        return [
-            html_div_next_steps
-        ]
-    elif pathname == '/principalinvestigators':
-        return [
-            html_div_pi
-        ]
-    elif pathname == '/researchstaff':
-        return[
-            html_div_staff
-        ]
-    elif pathname == '/advisors':
-        return[
-            html_div_advisors
-        ]
-    elif pathname == '/perform':
-        return [
-            html_div_perform
-        ]
+    # default fallback to landing
+    return [html_div_datavis_landing]
 
 # Add this to make all errors disappear on the right corner: dev_tools_ui=False,dev_tools_props_check=False
 if __name__ == '__main__':
