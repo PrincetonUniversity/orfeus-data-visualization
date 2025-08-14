@@ -3,36 +3,6 @@
 This repository contains a Dash application for visualizing scenarios, risk allocation, and LMPs.
 
 ## Running locally (Python)
-```
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-python app.py
-```
-
-## Container build and run
-Build the image:
-```
-docker build -t orfeus-app .
-```
-Run the container (maps port 8055):
-```
-docker run --rm -p 8055:8055 \
-  -e PORT=8055 \
-  -e DROPBOX_APP_KEY="$DROPBOX_APP_KEY" \
-  -e DROPBOX_APP_SECRET="$DROPBOX_APP_SECRET" \
-  -e DROPBOX_REFRESH_TOKEN="$DROPBOX_REFRESH_TOKEN" \
-  -e ORFEUS_PGSCEN_DIR="/app/data/PGscen_Scenarios" \
-  -v "$PWD/data:/app/data" \
-  orfeus-app
-```
-
-## Notes
-# ORFEUS Dash App
-
-This repository contains a Dash application for visualizing scenarios, risk allocation, and LMPs.
-
-## Running locally (Python)
 - Create a virtual environment and install requirements:
 ```
 python3 -m venv .venv
