@@ -1,0 +1,22 @@
+# Runtime dependencies for the ORFEUS Dash app
+# Versions aligned with environment.yml where feasible
+
+# Web stack
+dash==2.18.2
+dash-bootstrap-components==1.6.0
+flask==2.2.2
+flask-compress==1.13
+plotly==5.11.0
+werkzeug==2.2.2
+
+# Data
+pandas==1.4.4
+numpy==1.23.3
+
+# Optional integrations
+dropbox==12.0.2
+tenacity==8.1.0
+dill==0.3.4
+
+# Production server
+gunicorn==21.2.0

@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache/
+
+# VCS
+.git
+.gitignore
+
+# OS
+.DS_Store
+
+# Notebooks
+*.ipynb_checkpoints/
+
+# Env/venv
+.env
+.venv
+
+# Data caches (keep your real data in volume/mount if large)
+*.parquet
+*.feather
+*.pickle
+*.pkl
+*.bz2
+
+# Node
+node_modules/

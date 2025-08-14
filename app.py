@@ -30,3 +30,8 @@ if dropbox is not None and APP_KEY and APP_SECRET and REFRESH_TOKEN:
         dbx = None
         HAS_DROPBOX = False
 
+# Simple health endpoint for container orchestrators
+@app.server.get("/healthz")
+def _healthz():
+    return {"status": "ok"}
+
