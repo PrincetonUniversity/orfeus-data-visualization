@@ -148,3 +148,7 @@ cython_debug/
 
 # JetBrains IDEs
 .idea/
+
+scenarios_data/
+
+.DS_Store
