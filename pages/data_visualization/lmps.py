@@ -10,8 +10,6 @@ from plotly.colors import n_colors
 import plotly.graph_objects as go
 
 import dash_bootstrap_components as dbc
-
-from styles.styles import TITLE_STYLE, CONTENT_STYLE, MARKDOWN_STYLE_DOWNLOAD, DROPDOWN_STYLE, MARKDOWN_STYLE
 from inputs.inputs import date_values_t7k, bus, branch
 from markdown.lmps import markdown_text_lmps_overview, markdown_text_lmps_plot
 from app import app, dbx, HAS_DROPBOX
@@ -22,47 +20,37 @@ PLOT_TOKEN = 'pk.eyJ1IjoiZmFuZ2oxIiwiYSI6ImNsZDBoY2JseTAxaDUzb3NzMGx3NG5pNDAifQ'
 
 html_div_lmps_overview =  html.Div(children=[
 
-                html.H1(
-                    children='Locational Marginal Prices',
-                    style=TITLE_STYLE
-                ),
+                html.H1(children='Locational Marginal Prices', className='title'),
 
                 html.Div([
-                    dcc.Markdown(
-                        children= markdown_text_lmps_overview,
-                        style = MARKDOWN_STYLE),
+                    dcc.Markdown(children= markdown_text_lmps_overview, className='markdown'),
                 ]),
 
                 html.A(
                     "Link to our grid simulation Vatic github repo",
                     href='https://github.com/PrincetonUniversity/Vatic/tree/v0.4.0-a2',
                     target="_blank")
-            ],
-                style=CONTENT_STYLE)
+            ], className='app-content')
 
 
 
 html_div_lmps = html.Div(children=[
                   dbc.Row(
-                      dbc.Col(html.H3(children='LMP Geographic Plots', style=TITLE_STYLE))
+                                            dbc.Col(html.H3(children='LMP Geographic Plots', className='title'))
                       , justify='start', align='start'),
 
                     html.Div([
-                        dcc.Markdown(
-                            children=markdown_text_lmps_plot,
-                            style=MARKDOWN_STYLE_DOWNLOAD),
+                                                dcc.Markdown(children=markdown_text_lmps_plot, className='markdown'),
                     ],
-                        style={'padding': '20px'}),
+                                                className='section'),
 
                     html.Hr(),
 
                     dbc.Row(
                         dbc.Col([
                             html.Label('Select Day'),
-                            dcc.Dropdown(date_values_t7k[:-2],
-                                         id='date_values_t7k_lmps',
-                                         value=date_values_t7k[0],
-                                         style=DROPDOWN_STYLE),
+                            dcc.Dropdown(date_values_t7k[:-2], id='date_values_t7k_lmps',
+                                         value=date_values_t7k[0], className='dropdown-short'),
                             html.Br()
                         ])
                     ),
@@ -70,10 +58,8 @@ html_div_lmps = html.Div(children=[
                     dbc.Row(
                         dbc.Col([
                             html.Label('Select Hr'),
-                            dcc.Dropdown(list(range(24)),
-                                         id='hr_values_t7k_lmps',
-                                         value=15,
-                                         style=DROPDOWN_STYLE)
+                            dcc.Dropdown(list(range(24)), id='hr_values_t7k_lmps',
+                                         value=15, className='dropdown-short')
                         ])
                     ),
 
@@ -81,14 +67,11 @@ html_div_lmps = html.Div(children=[
 
                     dbc.Row([
                         dbc.Col(
-                            dcc.Graph(
-                                id='fig_lmp_geo',
-                                style={'padding-left': '10px'}
-                            ))
+                            dcc.Graph(id='fig_lmp_geo', className='graph-pad'))
                     ]
                         , justify='start')
 
-                ], style = CONTENT_STYLE)
+                ], className='app-content')
 
 
 def plot_particular_hour(hr, bus_detail, line_detail):
@@ -144,7 +127,6 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                                        hover_data=['Bus ID', 'LMP',
                                                    'Demand',
                                                    'GEN UID'],
-                                       color_continuous_scale=px.colors.sequential.Turbo,
                                        size_max=15, zoom=1)
 
     if bus_detail_hr_highcongest.shape[0] != 0:
@@ -154,26 +136,23 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                                 hover_name='Bus Name',
                                 hover_data=['Bus ID', 'LMP', 'Demand',
                                             'GEN UID'],
-                                color_continuous_scale=px.colors.sequential.Turbo,
                                 size_max=15, zoom=1)
-
-    fig.add_trace(fig_highcongest.data[0])
+        fig.add_trace(fig_highcongest.data[0])
 
     if bus_detail_mismatch.shape[0] != 0:
         busids_mismatch = list(bus_detail_mismatch['Bus ID'].unique())
         line_detail_hr_mismatch = line_detail_hr[
             line_detail_hr['From Bus'].isin(busids_mismatch) |
             line_detail_hr['To Bus'].isin(busids_mismatch)]
-        fig_mismatch = px.scatter_mapbox(bus_detail_mismatch, lat="lat",
-                                         lon="lng", color="LMP", opacity=1.0,
-                                         size='size',
-                                         hover_name='Bus Name',
-                                         hover_data=['Bus ID', 'LMP',
-                                                     'Mismatch', 'Demand',
-                                                     'GEN UID'],
-                                         color_continuous_scale=px.colors.sequential.Turbo,
-                                         size_max=15, zoom=1)
-        fig.add_trace(fig_mismatch.data[0])
+    fig_mismatch = px.scatter_mapbox(bus_detail_mismatch, lat="lat",
+                     lon="lng", color="LMP", opacity=1.0,
+                     size='size',
+                     hover_name='Bus Name',
+                     hover_data=['Bus ID', 'LMP',
+                             'Mismatch', 'Demand',
+                             'GEN UID'],
+                     size_max=15, zoom=1)
+    fig.add_trace(fig_mismatch.data[0])
 
     fig.update_layout(
         hovermode='closest',

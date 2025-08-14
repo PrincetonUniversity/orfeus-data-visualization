@@ -4,10 +4,6 @@ from dash import html, dcc, Input, Output, ctx
 import plotly.express as px
 
 import dash_bootstrap_components as dbc
-
-from styles.styles import TITLE_STYLE, INDEX_TITLE_STYLE, INDEX_NUM_STYLE, WHITE_BUTTON_STYLE, CONTENT_STYLE, \
-    DROPDOWN_STYLE_LONG,  TAB_STYLE, TABS_STYLES, TAB_SELECTED_STYLE, MARKDOWN_STYLE, \
-    colors, colors_type
 from inputs.inputs import type_allocs_rts, asset_allocs_rts, type_allocs_t7k, asset_allocs_t7k
 from markdown.allocation import markdown_text_riskalloc
 from app import app
@@ -43,18 +39,14 @@ asset_allocs_t7k_day = asset_allocs_t7k[
 
 html_div_risk_allocation_overview =  html.Div(children=[
 
-                html.H1(
-                    children='Risk Allocation',
-                    style=TITLE_STYLE
-                ),
+                html.H1(children='Risk Allocation', className='title'),
 
                 html.Div([
-                    dcc.Markdown(children=markdown_text_riskalloc,
-                                 style=MARKDOWN_STYLE)
+                    dcc.Markdown(children=markdown_text_riskalloc, className='markdown')
                 ],
-                    style={'padding': '20px'})
+                    className='section')
             ],
-                style=CONTENT_STYLE)
+                className='app-content')
 
 def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal,
                         type_allocs_rtpv_day = type_allocs_rts_day['RTPV'],
@@ -76,28 +68,22 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
     dbc_asset_type_title = dbc.Row(
         dbc.Col([
             html.Br(),
-            html.H3(
-                children='Asset Type Reliability Cost Index on {}'.format(
-                    yesterdate_verbal),
-                style=INDEX_TITLE_STYLE),
+        html.H3(children='Asset Type Reliability Cost Index on {}'.format(yesterdate_verbal),
+            className='index-title'),
         ])
         , justify='start', align='start')
 
     dbc_solar_index = dbc.Row(
         dbc.Col([
-            html.H3(
-                children='{}: {:.2f}'.format('Solar',
-                                             type_allocs_pv_day),
-                style=INDEX_NUM_STYLE)
+        html.H3(children='{}: {:.2f}'.format('Solar', type_allocs_pv_day),
+            className='index-num')
         ]),
         justify='start', align='start')
 
     dbc_wind_index = dbc.Row(
         dbc.Col([
-            html.H3(
-                children='{}: {:.2f}'.format('Wind',
-                                             type_allocs_wind_day),
-                style=INDEX_NUM_STYLE)
+        html.H3(children='{}: {:.2f}'.format('Wind', type_allocs_wind_day),
+            className='index-num')
         ]),
         justify='start', align='start')
 
@@ -105,10 +91,8 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
     if label == 'RTS':
         dbc_rtpv_index = dbc.Row(
             dbc.Col([
-                html.H3(children='{}: {:.2f}'.format(
-                    'Rooftop Solar',
-                    type_allocs_rtpv_day),
-                    style=INDEX_NUM_STYLE)
+            html.H3(children='{}: {:.2f}'.format('Rooftop Solar', type_allocs_rtpv_day),
+                className='index-num')
             ])
             , justify='start', align='start')
 
@@ -123,9 +107,7 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
         dbc.Row(
             dbc.Col([
                 html.Br(),
-                html.H3(
-                    children=asset_level_index_title,
-                    style=INDEX_TITLE_STYLE)
+                html.H3(children=asset_level_index_title, className='index-title')
             ]),
             justify='start', align='start'),
 
@@ -135,20 +117,15 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
                     className="four columns pretty_container",
                     children=[
                         html.Label('Select Asset Id'),
-                        dcc.Dropdown(
-                            asset_ids,
-                            placeholder='Asset ID',
-                            id=asset_ids_id,
-                            value=asset_ids[0],
-                            style=DROPDOWN_STYLE_LONG)
+                        dcc.Dropdown(asset_ids, placeholder='Asset ID', id=asset_ids_id,
+                                     value=asset_ids[0], className='dropdown-long')
                     ])
             ])]),
 
         dbc.Row(
             dbc.Col([
                 html.Br(),
-                html.Div(id=daily_index_asset_id,
-                         style=INDEX_NUM_STYLE),
+                html.Div(id=daily_index_asset_id, className='index-num'),
                 html.Br()
             ])
             , justify='start', align='start'),
@@ -160,36 +137,24 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
         dbc.Row(
             dbc.Col([
                 html.Br(),
-                html.H3(
-                    children=[
+                html.H3(children=[
                         'Hourly Time Series of Asset Level Reliability Cost Index for ',
-
-                        html.Div(
-                            id=asset_id_in_plot_title,
-                            style={'display': 'inline'})
-
-                    ],
-                    style=INDEX_TITLE_STYLE)
+                        html.Div(id=asset_id_in_plot_title, className='inline')
+                    ], className='index-title')
             ]),
             justify='start', align='start'),
 
         dbc.Row([
             dbc.Col(
                 html.Div([
-                    html.Button('1 day',
-                                id=button_id_day_asset_alloc,
-                                n_clicks=0,
-                                style=WHITE_BUTTON_STYLE),
+                    html.Button('1 day', id=button_id_day_asset_alloc,
+                                n_clicks=0, className='btn-white'),
 
-                    html.Button('1 week',
-                                id=button_id_week_asset_alloc,
-                                n_clicks=0,
-                                style=WHITE_BUTTON_STYLE),
+                    html.Button('1 week', id=button_id_week_asset_alloc,
+                                n_clicks=0, className='btn-white'),
 
-                    html.Button('historical',
-                                id=button_id_hist_asset_alloc,
-                                n_clicks=0,
-                                style=WHITE_BUTTON_STYLE),
+                    html.Button('historical', id=button_id_hist_asset_alloc,
+                                n_clicks=0, className='btn-white'),
                     html.Div(
                         id='container-button-timestamp')
                 ])
@@ -200,7 +165,7 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
             dbc.Col([
                 dcc.Graph(
                     id=fig_id_asset_alloc,
-                    style={'padding-left': '10px'}
+                    className='graph-pad'
                 )
             ]),
 
@@ -215,29 +180,22 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
         dbc.Row(
             dbc.Col([
                 html.Br(),
-                html.H3(
-                    children='Hourly Time Series of Asset Type Reliability Cost Index',
-                    style=INDEX_TITLE_STYLE)
+        html.H3(children='Hourly Time Series of Asset Type Reliability Cost Index',
+            className='index-title')
             ]),
             justify='start', align='start'),
 
         dbc.Row([
             dbc.Col(
                 html.Div([
-                    html.Button('1 day',
-                                id=button_id_day_type_alloc,
-                                n_clicks=0,
-                                style=WHITE_BUTTON_STYLE),
+                    html.Button('1 day', id=button_id_day_type_alloc,
+                                n_clicks=0, className='btn-white'),
 
-                    html.Button('1 week',
-                                id=button_id_week_type_alloc,
-                                n_clicks=0,
-                                style=WHITE_BUTTON_STYLE),
+                    html.Button('1 week', id=button_id_week_type_alloc,
+                                n_clicks=0, className='btn-white'),
 
-                    html.Button('historical',
-                                id=button_id_hist_type_alloc,
-                                n_clicks=0,
-                                style=WHITE_BUTTON_STYLE),
+                    html.Button('historical', id=button_id_hist_type_alloc,
+                                n_clicks=0, className='btn-white'),
                     html.Div(
                         id='container-button-timestamp')
                 ])
@@ -249,7 +207,7 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
                 dcc.Graph(
                     # figure=plot_mean_asset_type_risk_alloc(type_allocs_rts),
                     id=fig_id_type_alloc,
-                    style={'padding-left': '10px'}
+                    className='graph-pad'
                 ))
         ],
             justify='start'),
@@ -265,14 +223,13 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
                         html_asset_level_index, html_asset_type_plot, html_asset_level_plot]
 
     dcc_tab = dcc.Tab(label= label, children=tab_children,
-                                    style=TAB_STYLE,
-                                    selected_style=TAB_SELECTED_STYLE)
+                                    className='tab',
+                                    selected_className='tab--selected')
     return dcc_tab
 
 html_div_risk_allocation = html.Div(children=[
                 dbc.Row(
-                    dbc.Col(html.H3(children='Reliability Cost Index',
-                                    style=TITLE_STYLE))
+                    dbc.Col(html.H3(children='Reliability Cost Index', className='title'))
                     , justify='start', align='start'),
 
                 dbc.Row(dcc.Tabs(
@@ -317,11 +274,10 @@ html_div_risk_allocation = html.Div(children=[
                                                 button_id_hist_asset_alloc='t7k-asset-allocs-hist',
                                                 fig_id_asset_alloc='fig_asset_risk_alloc_t7k'),
 
-                    ],
-                    style=TABS_STYLES
+                    ], className='tabs'
                 ),
                     justify='between')
-            ], style=CONTENT_STYLE)
+            ], className='app-content')
 
 def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                                     level='asset_type', asset_id=None):
@@ -371,26 +327,16 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                                          title_font_size=25)
 
     fig_type_allocs.data[0].name = 'Wind'
-    fig_type_allocs.data[0].line.color = colors_type['Wind']
 
     if level == 'asset_type':
         fig_type_allocs.data[1].name = 'Solar'
-        fig_type_allocs.data[1].line.color = colors_type['Solar']
         if version == 'RTS':
             fig_type_allocs.data[2].name = 'Rooftop Solar'
-            fig_type_allocs.data[2].line.color = colors_type['Rooftop Solar']
 
     fig_type_allocs.update_layout(
-        # title='Hourly Time Series of {} Asset Type Reliability Cost Index, updated on {}'.format(version, todaydate_verbal),
         xaxis_title='Date',
         yaxis_title='Reliability Cost Index ($)',
-        legend_title='Asset Type',
-        font_family='sans-serif', font_color=colors['text_1'],
-        title_font_color=colors['plottitle'],
-        legend=dict(x=1, y=1), legend_font_size=20, title_font_size=25,
-        font_size=16,
-        plot_bgcolor=colors['lightbackground'],
-        paper_bgcolor=colors['background'])
+        legend_title='Asset Type')
 
     # fig_type_allocs.update_xaxes(
     #     rangeselector=dict(
@@ -403,8 +349,7 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
     #     title_font_size = 25
     # )
 
-    fig_type_allocs.update_yaxes(
-        title_font_size=25)
+    fig_type_allocs.update_yaxes(title_font_size=25)
     return fig_type_allocs
 
 

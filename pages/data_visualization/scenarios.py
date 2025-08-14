@@ -9,10 +9,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 import dash_bootstrap_components as dbc
-
-from styles.styles import TITLE_STYLE, MARKDOWN_STYLE, CONTENT_STYLE, \
-    DROPDOWN_STYLE, RADIOITEMS_STYLE, DROPDOWN_STYLE_LONG, TAB_STYLE, TABS_STYLES, TAB_SELECTED_STYLE, \
-    colors, colors_scenario
 from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR
 from markdown.scenarios import markdown_text_scenario
 from app import app, dbx, HAS_DROPBOX
@@ -20,8 +16,7 @@ from app import app, dbx, HAS_DROPBOX
 # Optional local PGScen scenarios directory (from another repo)
 PGSCEN_DIR = os.getenv('ORFEUS_PGSCEN_DIR', os.path.join(ROOT_DIR, 'data', 'PGscen_Scenarios'))
 
-def _try_build_fig_from_pgscen(version: str, day: str, energy_type: str,
-                               actl_color: str, fcst_color: str, scen_color: str, fper_color: str):
+def _try_build_fig_from_pgscen(version: str, day: str, energy_type: str):
     """Try to build a scenarios figure from local PGScen CSV.GZ files.
     Returns a plotly figure or None on failure.
     """
@@ -75,19 +70,13 @@ def _try_build_fig_from_pgscen(version: str, day: str, energy_type: str,
     df_summary['95%'] = scen_vals.quantile(0.95, axis=1)
 
     fig_summary = px.line(df_summary, x='date', y=['scen_avg', 'actual', 'forecast'])
-    fig_summary.data[1].line.color = actl_color
-    fig_summary.data[2].line.color = fcst_color
     fig_summary.data[2].line.dash = 'dash'
-    fig_summary.data[0].line.color = scen_color
-    fig_summary.data[0].line.width = 2
     fig_summary.data[0].name = f'Scen Avg-{version}'
     fig_summary.data[1].name = f'Actual-{version}'
     fig_summary.data[2].name = f'Forecast-{version}'
 
     fig_5per = px.line(df_summary, x='date', y=['5%'])
-    fig_5per.update_traces(line_color=fper_color, line_width=1)
     fig_95per = px.line(df_summary, x='date', y=['95%'])
-    fig_95per.update_traces(line_color=fper_color, line_width=1)
     for tr in fig_summary.data:
         fig_5per.add_trace(tr)
     for tr in fig_95per.data:
@@ -98,20 +87,8 @@ def _try_build_fig_from_pgscen(version: str, day: str, energy_type: str,
         title=f'Hourly Time Series for Asset (PGScen {energy_type}) on {date_verbal} in Local Time Zone',
         yaxis_title='MWh',
         xaxis_title='Time',
-        legend_title='',
-        font_family='sans-serif', font_color=colors['text_1'],
-        title_font_color=colors['plottitle'],
-        legend=dict(x=1, y=1), legend_font_size=20, title_font_size=28,
-        font_size=16,
-        plot_bgcolor=colors['lightbackground'],
-        paper_bgcolor=colors['background'])
-    fig_5per.update_xaxes(title_font_size=25, dtick=3600000, tickformat='%I%p',
-                          title_font_color=colors['title'], showgrid=True,
-                          gridwidth=1, gridcolor=colors['grid'], zeroline=True,
-                          zerolinewidth=1, zerolinecolor=colors['grid'])
-    fig_5per.update_yaxes(title_font_size=25, title_font_color=colors['title'],
-                          showgrid=True, gridwidth=1, gridcolor=colors['grid'],
-                          zeroline=True, zerolinewidth=1, zerolinecolor=colors['grid'])
+        legend_title='')
+    fig_5per.update_xaxes(dtick=3600000, tickformat='%I%p')
     return fig_5per
 
 def dcc_tab_scenariovisualize(label= 'RTS',
@@ -148,7 +125,7 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                         dcc.Dropdown(date_values,
                                      id=date_values_id,
                                      value=date_values[0],
-                                     style=DROPDOWN_STYLE)
+                                     className='dropdown-short')
                     ])
                 ),
 
@@ -162,7 +139,7 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                                 energy_types),
                             'load',
                             id=energy_types_id,
-                            style=RADIOITEMS_STYLE)
+                            className='radioitems')
                     ])
                 ]),
 
@@ -171,7 +148,7 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                     dbc.Col([
                         html.Label('Select Asset ID'),
                         dcc.Dropdown(id=asset_id,
-                                     style=DROPDOWN_STYLE_LONG),
+                                     className='dropdown-long'),
                         # html.Br(),
                         # html.Button('Download', id='btn-nclicks-1', n_clicks=0),
                         html.Hr()
@@ -186,8 +163,8 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                         id=scenario_plot_id)
                 ]))
             ],
-            style=TAB_STYLE,
-            selected_style=TAB_SELECTED_STYLE)
+            className='tab',
+            selected_className='tab--selected')
     return dcc_tab
 
 
@@ -195,27 +172,27 @@ html_div_scenariooverview = html.Div(children=[
 
     html.H1(
         children='Energy Demand Scenarios Geneartion via Stochastic Model',
-        style=TITLE_STYLE
+        className='title'
     ),
 
     html.Div([
         dcc.Markdown(children=markdown_text_scenario,
-                     style=MARKDOWN_STYLE),
+                     className='markdown'),
         html.A(
             "Link to our scenario genearation PGscen github repo",
             href='https://github.com/PrincetonUniversity/PGscen',
             target="_blank")
 
     ],
-        style={'padding': '20px'})
+        className='section')
 ],
-    style=CONTENT_STYLE)
+    className='app-content')
 
 html_div_scenariovisualize = html.Div(children=[
 
                 dbc.Row(
                     dbc.Col(html.H3(children='Scenarios Visualization',
-                                    style=TITLE_STYLE))
+                                    className='title'))
                     , justify='start', align='start'),
 
                 dbc.Row(dcc.Tabs(
@@ -235,15 +212,13 @@ html_div_scenariovisualize = html.Div(children=[
                                                   energy_types_id='energy_types_t7k',
                                                   asset_id='asset_ids_t7k',
                                                   scenario_plot_id='t7k_scenario_plot_notuning')
-                    ],
-                    style=TABS_STYLES,
+                    ], className='tabs'
                 ),
                     justify='between')
-            ], style=CONTENT_STYLE)
+            ], className='app-content')
 
 
-def build_timeseries(version, day, asset_type, asset_id,
-                     actl_color, fcst_color, scen_color, fper_color):
+def build_timeseries(version, day, asset_type, asset_id):
     day = day.replace('-', '')
     file_path = '/ORFEUS-Alice/data/scenarios_data/{}-scens-csv/{}/{}/{}.csv'.format(
         version, day, asset_type, asset_id)
@@ -305,8 +280,7 @@ def build_timeseries(version, day, asset_type, asset_id,
         if df is None:
             # Try PGScen directory (expects YYYY-MM-DD)
             day_iso = f"{day[:4]}-{day[4:6]}-{day[6:8]}"
-            fig_pg = _try_build_fig_from_pgscen(version, day_iso, asset_type,
-                                                actl_color, fcst_color, scen_color, fper_color)
+            fig_pg = _try_build_fig_from_pgscen(version, day_iso, asset_type)
             if fig_pg is not None:
                 return fig_pg
             # No data available: return an annotated empty figure
@@ -314,10 +288,8 @@ def build_timeseries(version, day, asset_type, asset_id,
             fig = go.Figure()
             fig.add_annotation(text=msg, xref="paper", yref="paper",
                                x=0.5, y=0.5, showarrow=False,
-                               font=dict(size=18, color=colors['title']))
-            fig.update_layout(plot_bgcolor=colors['lightbackground'],
-                              paper_bgcolor=colors['background'],
-                              title=f"{asset_id} — {day_iso}")
+                               font=dict(size=18))
+            fig.update_layout(title=f"{asset_id} — {day_iso}")
             return fig
 
     # build the list of date values
@@ -366,15 +338,7 @@ def build_timeseries(version, day, asset_type, asset_id,
     fig_summary = px.line(df_summary, x='date',
                           y=['scen_avg', 'actual', 'forecast'])
 
-    fig_summary.data[1].line.color = actl_color
-
-    fig_summary.data[2].line.color = fcst_color
-
     fig_summary.data[2].line.dash = 'dash'
-
-    fig_summary.data[0].line.color = scen_color
-
-    fig_summary.data[0].line.width = 2
 
     fig_summary.data[0].name = 'Scen Avg-{}'.format(version)
 
@@ -390,13 +354,11 @@ def build_timeseries(version, day, asset_type, asset_id,
 
     # add 5 percentile scenarios to plot
     fig_5per = px.line(df_5per, x=date_values_7k, y=df_5per.columns)
-    fig_5per.update_traces(line_color=fper_color, line_width=2)
     fig_5per.for_each_trace(
         lambda t: t.update(name='Top 5 Percentile-{}'.format(version),
                            legendgroup='Top 5 Percentile-{}'.format(version)))
 
     fig_95per = px.line(df_95per, x=date_values_7k, y=df_95per.columns)
-    fig_95per.update_traces(line_color=fper_color, line_width=2)
     fig_95per.for_each_trace(
         lambda t: t.update(name='Bottom 5 Percentile-{}'.format(version),
                            legendgroup='Bottom 5 Percentile-{}'.format(
@@ -417,7 +379,6 @@ def build_timeseries(version, day, asset_type, asset_id,
         fig_5per.add_trace(fig_95per.data[i])
 
     fig = fig_5per
-    fig.update_layout(plot_bgcolor='#F9F9F9')
 
     date = datetime.strptime(day, "%Y%m%d").strftime("%b %d, %Y")
     fig.update_layout(
@@ -425,24 +386,8 @@ def build_timeseries(version, day, asset_type, asset_id,
             asset_id, date),
         yaxis_title='MWh',
         xaxis_title='Time',
-        legend_title='',
-        font_family='sans-serif', font_color=colors['text_1'],
-        title_font_color=colors['plottitle'],
-        legend=dict(x=1, y=1), legend_font_size=20, title_font_size=28,
-        font_size=16,
-        plot_bgcolor=colors['lightbackground'],
-        paper_bgcolor=colors['background'])
-    fig.update_xaxes(title_font_size=25, dtick=3600000, tickformat='%I%p',
-                     title_font_color=colors['title'],
-                     showgrid=True, gridwidth=1, gridcolor=colors['grid'],
-                     zeroline=True, zerolinewidth=1,
-                     zerolinecolor=colors['grid']
-                     )
-    fig.update_yaxes(title_font_size=25,
-                     title_font_color=colors['title'],
-                     showgrid=True, gridwidth=1, gridcolor=colors['grid'],
-                     zeroline=True, zerolinewidth=1,
-                     zerolinecolor=colors['grid'])
+        legend_title='')
+    fig.update_xaxes(dtick=3600000, tickformat='%I%p')
 
     return fig
 
@@ -483,11 +428,7 @@ def set_asset_ids_value(energy_types_asset_ids_rts_csv):
     Input('energy_types_t7k', 'value'),
     Input('asset_ids_t7k', 'value'))
 def update_scenario_plot(day, asset_type, asset_id):
-    return build_timeseries('t7k', day, asset_type, asset_id,
-                            colors_scenario['actual_notuning'],
-                            colors_scenario['forecast_tuning'],
-                            colors_scenario['scen_notuning'],
-                            colors_scenario['5per_notuning'])
+    return build_timeseries('t7k', day, asset_type, asset_id)
 
 
 @app.callback(
@@ -497,8 +438,4 @@ def update_scenario_plot(day, asset_type, asset_id):
     Input('energy_types_rts', 'value'),
     Input('asset_ids_rts', 'value'))
 def update_scenario_plot_rts(day, asset_type, asset_id):
-    return build_timeseries('rts', day, asset_type, asset_id,
-                            colors_scenario['actual_notuning'],
-                            colors_scenario['forecast_tuning'],
-                            colors_scenario['scen_notuning'],
-                            colors_scenario['5per_notuning'])
+    return build_timeseries('rts', day, asset_type, asset_id)

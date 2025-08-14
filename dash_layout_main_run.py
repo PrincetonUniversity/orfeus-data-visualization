@@ -1,40 +1,37 @@
 import dash_bootstrap_components as dbc
 
-from dash import dcc, html, Input, Output
+from dash import dcc, html, Input, Output, State
 
 from app import app
-from styles.styles import colors, CONTENT_STYLE, DASH_STYLE, TITLE_STYLE, MARKDOWN_STYLE
 from pages.data_visualization.scenarios import html_div_scenariovisualize
 from pages.data_visualization.risk_allocation import html_div_risk_allocation
 from pages.data_visualization.lmps import html_div_lmps
 
 projecturl = 'https://orfeus.princeton.edu/'
 
-navbar = dbc.NavbarSimple(
-    children=[
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Data Visualization", href="/"),
-                dbc.DropdownMenuItem("Scenarios Visualization", href="/scenariovisualize"),
-                dbc.DropdownMenuItem("Risk Allocation Plot", href="/riskallocplot"),
-                dbc.DropdownMenuItem("LMP Geographical Visualization", href="/lmpplot")
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Data Visualization",
+navbar = dbc.Navbar(
+    dbc.Container([
+        dbc.NavbarBrand("ORFEUS Data Visualization", href="/"),
+        dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
+        dbc.Collapse(
+            dbc.Nav([
+                dbc.NavItem(dbc.NavLink("Scenarios Visualization", href="/scenariovisualize", active="exact")),
+                dbc.NavItem(dbc.NavLink("Risk Allocation Plot", href="/riskallocplot", active="exact")),
+                dbc.NavItem(dbc.NavLink("LMP Geographical Visualization", href="/lmpplot", active="exact")),
+            ], className="ms-auto", navbar=True),
+            id="navbar-collapse",
+            is_open=False,
+            navbar=True,
         ),
-    ],
-    brand="ORFEUS Data Visualization",
-    brand_href="/",
-    color=colors['background_navgbar'],
+    ], fluid=True),
     dark=False,
-    fluid=True
+    className="dbc-navbar"
 )
 
 
-content = html.Div(id='page-content', children=[], style=CONTENT_STYLE)
+content = html.Div(id='page-content', children=[], className='app-content')
 
-app.layout = html.Div(style=DASH_STYLE,
+app.layout = html.Div(
                       children=[
                           dcc.Store(id='side_click'),
                           dcc.Location(id='url'),
@@ -46,7 +43,7 @@ app.layout = html.Div(style=DASH_STYLE,
 
 # Landing page for Data Visualization
 html_div_datavis_landing = html.Div(children=[
-    html.H1("Data Visualization", style=TITLE_STYLE),
+    html.H1("Data Visualization", className='title'),
     html.Div([
         dcc.Markdown(
             children=(
@@ -54,7 +51,7 @@ html_div_datavis_landing = html.Div(children=[
                 "asset type, and asset ID, Risk Allocation Plot, and LMP Geographic Plots to explore "
                 "how LMPs distribute geographically."
             ),
-            style=MARKDOWN_STYLE,
+            className='markdown',
         ),
         html.Hr(),
         html.Ul([
@@ -62,8 +59,8 @@ html_div_datavis_landing = html.Div(children=[
             html.Li(html.A("Risk Allocation Plot", href="/riskallocplot")),
             html.Li(html.A("LMP Geographical Visualization", href="/lmpplot")),
         ]),
-    ], style={'padding': '20px'})
-], style=CONTENT_STYLE)
+    ], className='section')
+], className='app-content')
 
 
 @app.callback(
@@ -87,6 +84,17 @@ def render_page_content(pathname):
         ]
     # default fallback to landing
     return [html_div_datavis_landing]
+
+# Toggle the navbar collapse on small screens
+@app.callback(
+    Output("navbar-collapse", "is_open"),
+    Input("navbar-toggler", "n_clicks"),
+    State("navbar-collapse", "is_open"),
+)
+def toggle_navbar_collapse(n, is_open):
+    if n:
+        return not (is_open or False)
+    return is_open
 
 # Add this to make all errors disappear on the right corner: dev_tools_ui=False,dev_tools_props_check=False
 if __name__ == '__main__':
