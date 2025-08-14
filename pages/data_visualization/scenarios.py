@@ -12,7 +12,9 @@ import dash_bootstrap_components as dbc
 from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR
 from utils.md import load_markdown
 markdown_text_scenario = load_markdown('markdown', 'scenarios.md')
-from app import app, dbx, HAS_DROPBOX
+import dash
+from app import dbx, HAS_DROPBOX
+dash.register_page(__name__, path='/scenariovisualize', name='Scenarios', order=1)
 
 # Optional local PGScen scenarios directory (from another repo)
 PGSCEN_DIR = os.getenv('ORFEUS_PGSCEN_DIR', os.path.join(ROOT_DIR, 'data', 'PGscen_Scenarios'))
@@ -218,6 +220,12 @@ html_div_scenariovisualize = html.Div(children=[
                     justify='between')
             ], className='app-content')
 
+# Dash Pages expects a module-level variable named 'layout'
+layout = html.Div([
+    html_div_scenariooverview,
+    html_div_scenariovisualize,
+])
+
 
 def build_timeseries(version, day, asset_type, asset_id):
     day = day.replace('-', '')
@@ -393,7 +401,7 @@ def build_timeseries(version, day, asset_type, asset_id):
     return fig
 
 
-@app.callback(
+@dash.callback(
     Output('asset_ids_t7k', 'options'),
     Input('energy_types_t7k', 'value'))
 def set_asset_ids_options(energy_type):
@@ -401,14 +409,14 @@ def set_asset_ids_options(energy_type):
             energy_types_asset_ids_t7k_csv[energy_type]]
 
 
-@app.callback(
+@dash.callback(
     Output('asset_ids_t7k', 'value'),
     Input('asset_ids_t7k', 'options'))
 def set_asset_ids_value(energy_types_asset_ids_t7k_csv):
     return energy_types_asset_ids_t7k_csv[2]['value']
 
 
-@app.callback(
+@dash.callback(
     Output('asset_ids_rts', 'options'),
     Input('energy_types_rts', 'value'))
 def set_asset_ids_options(energy_type):
@@ -416,13 +424,13 @@ def set_asset_ids_options(energy_type):
             energy_types_asset_ids_rts_csv[energy_type]]
 
 
-@app.callback(
+@dash.callback(
     Output('asset_ids_rts', 'value'),
     Input('asset_ids_rts', 'options'))
 def set_asset_ids_value(energy_types_asset_ids_rts_csv):
     return energy_types_asset_ids_rts_csv[0]['value']
 
-@app.callback(
+@dash.callback(
     Output('t7k_scenario_plot_notuning', 'figure'),
     # Input('version_t7k', 'value'),
     Input('date_values_t7k', 'value'),
@@ -432,7 +440,7 @@ def update_scenario_plot(day, asset_type, asset_id):
     return build_timeseries('t7k', day, asset_type, asset_id)
 
 
-@app.callback(
+@dash.callback(
     Output('rts_scenario_plot_notuning', 'figure'),
     # Input('version_t7k', 'value'),
     Input('date_values_rts', 'value'),

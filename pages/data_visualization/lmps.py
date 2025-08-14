@@ -10,12 +10,14 @@ import plotly.express as px
 from plotly.colors import n_colors
 import plotly.graph_objects as go
 
+import dash
 import dash_bootstrap_components as dbc
 from inputs.inputs import date_values_t7k, bus, branch
 from utils.md import load_markdown
 markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
 markdown_text_lmps_plot = load_markdown('markdown', 'lmps_plot.md')
-from app import app, dbx, HAS_DROPBOX
+from app import dbx, HAS_DROPBOX
+dash.register_page(__name__, path='/lmpplot', name='LMPs', order=3)
 
 # geographical plot token
 PLOT_TOKEN = 'pk.eyJ1IjoiZmFuZ2oxIiwiYSI6ImNsZDBoY2JseTAxaDUzb3NzMGx3NG5pNDAifQ' \
@@ -75,6 +77,12 @@ html_div_lmps = html.Div(children=[
                         , justify='start')
 
                 ], className='app-content')
+
+# Dash Pages expects a module-level variable named 'layout'
+layout = html.Div([
+    html_div_lmps_overview,
+    html_div_lmps,
+])
 
 
 def plot_particular_hour(hr, bus_detail, line_detail):
@@ -309,7 +317,7 @@ def build_lmp_plot_file(file_name, bus, branch):
         lambda x: busid_lng[x])
     return bus_detail, line_detail
 
-@app.callback(
+@dash.callback(
     Output('fig_lmp_geo', 'figure'),
     Input('date_values_t7k_lmps', 'value'),
     Input('hr_values_t7k_lmps', 'value'))

@@ -3,11 +3,12 @@ from datetime import date, timedelta, datetime
 from dash import html, dcc, Input, Output, ctx
 import plotly.express as px
 
+import dash
 import dash_bootstrap_components as dbc
 from inputs.inputs import type_allocs_rts, asset_allocs_rts, type_allocs_t7k, asset_allocs_t7k
 from utils.md import load_markdown
 markdown_text_riskalloc = load_markdown('markdown', 'allocation.md')
-from app import app
+dash.register_page(__name__, path='/riskallocplot', name='Risk Allocation', order=2)
 
 today = date.today()
 yesterdate_verbal = (today - timedelta(1)).strftime("%b %d, %Y").split(',')[0]
@@ -280,6 +281,9 @@ html_div_risk_allocation = html.Div(children=[
                     justify='between')
             ], className='app-content')
 
+# Dash Pages module-level layout
+layout = html_div_risk_allocation
+
 def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                                     level='asset_type', asset_id=None):
     if version == 'RTS':
@@ -354,7 +358,7 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
     return fig_type_allocs
 
 
-@app.callback(
+@dash.callback(
     Output("fig_mean_asset_type_risk_alloc_rts", "figure"),
     Input('rts-type-allocs-1day', 'n_clicks'),
     Input('rts-type-allocs-1week', 'n_clicks'),
@@ -376,7 +380,7 @@ def plot_mean_asset_type_risk_alloc_daterange(btn1, btn2, btn3):
     return fig
 
 
-@app.callback(
+@dash.callback(
     Output('fig_asset_risk_alloc_rts', 'figure'),
     Input('asset_ids_risk_alloc_rts', 'value'),
     Input('rts-asset-allocs-1day', 'n_clicks'),
@@ -411,14 +415,14 @@ def asset_ids_risk_alloc(asset_id, button1, button2, button3):
     return fig_asset_allocs
 
 
-@app.callback(
+@dash.callback(
     Output('daily_index_asset_id_rts', 'children'),
     Input('asset_ids_risk_alloc_rts', 'value'))
 def find_daily_index_asset_id_rts(asset_id):
     index = asset_allocs_rts_day[asset_id]
     return f'{asset_id}: {index:.2f}'
 
-@app.callback(
+@dash.callback(
     Output('asset_id_in_plot_title_rts', 'children'),
     Input('asset_ids_risk_alloc_rts', 'value'))
 def find_daily_index_asset_id(asset_id):
@@ -426,7 +430,7 @@ def find_daily_index_asset_id(asset_id):
 
 
 
-@app.callback(
+@dash.callback(
     Output("fig_mean_asset_type_risk_alloc_t7k", "figure"),
     Input('t7k-type-allocs-1day', 'n_clicks'),
     Input('t7k-type-allocs-1week', 'n_clicks'),
@@ -447,7 +451,7 @@ def plot_mean_asset_type_risk_alloc_daterange(btn1, btn2, btn3):
                                               period='1day')
     return fig
 
-@app.callback(
+@dash.callback(
     Output('fig_asset_risk_alloc_t7k', 'figure'),
     Input('asset_ids_risk_alloc_t7k', 'value'),
     Input('t7k-asset-allocs-1day', 'n_clicks'),
@@ -482,14 +486,14 @@ def asset_ids_risk_alloc(asset_id, button1, button2, button3):
     return fig_asset_allocs
 
 
-@app.callback(
+@dash.callback(
     Output('daily_index_asset_id_t7k', 'children'),
     Input('asset_ids_risk_alloc_t7k', 'value'))
 def find_daily_index_asset_id_t7k(asset_id_t7k):
     index = asset_allocs_t7k[asset_id_t7k].mean()
     return f'{asset_id_t7k}: {index:.2f}'
 
-@app.callback(
+@dash.callback(
     Output('asset_id_in_plot_title_t7k', 'children'),
     Input('asset_ids_risk_alloc_t7k', 'value'))
 def find_daily_index_asset_id_t7k(asset_id_t7k):
