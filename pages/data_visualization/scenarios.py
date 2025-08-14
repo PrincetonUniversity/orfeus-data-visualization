@@ -179,12 +179,8 @@ html_div_scenariooverview = html.Div(children=[
     ),
 
     html.Div([
-        dcc.Markdown(children=markdown_text_scenario,
-                     className='markdown'),
-        html.A(
-            "Link to our scenario genearation PGscen github repo",
-            href='https://github.com/PrincetonUniversity/PGscen',
-            target="_blank")
+    dcc.Markdown(children=markdown_text_scenario,
+             className='markdown'),
 
     ],
         className='section')

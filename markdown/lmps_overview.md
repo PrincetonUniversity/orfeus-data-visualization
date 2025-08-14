@@ -5,3 +5,7 @@ Simulation of Real-world Power Grid Operations to Generate Realistic Locational 
 - Calculate LMPs to Reflect the Balance of Supply and Demand
 
 We design and develop the software Vatic to efficiently simulate the grid operations and the software could be customized to any grid.
+
+For details on our grid simulation toolkit, see the Vatic repository:
+
+- Link to our grid simulation Vatic GitHub repo: https://github.com/PrincetonUniversity/Vatic/tree/v0.4.0-a2

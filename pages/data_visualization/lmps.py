@@ -29,12 +29,7 @@ html_div_lmps_overview =  html.Div(children=[
 
                 html.Div([
                     dcc.Markdown(children= markdown_text_lmps_overview, className='markdown'),
-                ]),
-
-                html.A(
-                    "Link to our grid simulation Vatic github repo",
-                    href='https://github.com/PrincetonUniversity/Vatic/tree/v0.4.0-a2',
-                    target="_blank")
+                ])
             ], className='app-content')
 
 
