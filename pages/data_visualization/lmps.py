@@ -1,4 +1,5 @@
 import io
+import os
 import bz2
 import numpy as np
 import pandas as pd
@@ -11,7 +12,9 @@ import plotly.graph_objects as go
 
 import dash_bootstrap_components as dbc
 from inputs.inputs import date_values_t7k, bus, branch
-from markdown.lmps import markdown_text_lmps_overview, markdown_text_lmps_plot
+from utils.md import load_markdown
+markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
+markdown_text_lmps_plot = load_markdown('markdown', 'lmps_plot.md')
 from app import app, dbx, HAS_DROPBOX
 
 # geographical plot token

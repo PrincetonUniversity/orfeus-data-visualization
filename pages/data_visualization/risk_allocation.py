@@ -5,7 +5,8 @@ import plotly.express as px
 
 import dash_bootstrap_components as dbc
 from inputs.inputs import type_allocs_rts, asset_allocs_rts, type_allocs_t7k, asset_allocs_t7k
-from markdown.allocation import markdown_text_riskalloc
+from utils.md import load_markdown
+markdown_text_riskalloc = load_markdown('markdown', 'allocation.md')
 from app import app
 
 today = date.today()
