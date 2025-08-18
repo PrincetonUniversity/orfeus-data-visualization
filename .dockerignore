@@ -28,3 +28,6 @@ __pycache__/
 
 # Node
 node_modules/
+
+# Project data (mounted at runtime; exclude from image)
+data/

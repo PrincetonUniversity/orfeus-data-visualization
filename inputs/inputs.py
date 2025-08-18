@@ -164,34 +164,40 @@ def _safe_read_dropbox_csv(dbx_path: str, fallback_local: Optional[str], stub_co
     # Fallback: stub
     return _stub_hourly_df(start=start, end=end, cols=stub_cols)
 
-# Risk Allocation
-folder_path_dbx = '/ORFEUS-Alice/data/reliability_cost_index_data'
+def _safe_read_local_csv(local_rel_path: str, stub_cols: List[str], start: str, end: str) -> pd.DataFrame:
+    """Read a local CSV relative to ROOT_DIR, else return a stub hourly DataFrame."""
+    local_path = os.path.join(ROOT_DIR, local_rel_path)
+    if os.path.exists(local_path):
+        try:
+            return pd.read_csv(local_path, index_col=0).reset_index()
+        except Exception:
+            pass
+    return _stub_hourly_df(start=start, end=end, cols=stub_cols)
+
+# Risk Allocation (local only)
+folder_path_local = os.path.join('data', 'reliability_cost_index_data')
 
 # Type-level RTS (expects columns like WIND, PV, RTPV)
-type_allocs_rts = _safe_read_dropbox_csv(
-    f"{folder_path_dbx}/rts/daily_type-allocs_rts_type_allocs.csv",
-    fallback_local=None,
+type_allocs_rts = _safe_read_local_csv(
+    os.path.join(folder_path_local, 'rts', 'daily_type-allocs_rts_type_allocs.csv'),
     stub_cols=['WIND', 'PV', 'RTPV'],
     start='2020-01-01 00:00', end='2020-12-31 23:00')
 
 # Asset-level RTS (unknown asset ids -> provide placeholders)
-asset_allocs_rts = _safe_read_dropbox_csv(
-    f"{folder_path_dbx}/rts/daily_type-allocs_rts_asset_allocs.csv",
-    fallback_local=None,
+asset_allocs_rts = _safe_read_local_csv(
+    os.path.join(folder_path_local, 'rts', 'daily_type-allocs_rts_asset_allocs.csv'),
     stub_cols=['Asset-1', 'Asset-2'],
     start='2020-01-01 00:00', end='2020-12-31 23:00')
 
 # Type-level T7K (WIND, PV)
-type_allocs_t7k = _safe_read_dropbox_csv(
-    f"{folder_path_dbx}/t7k/daily_type-allocs_t7k_type_allocs.csv",
-    fallback_local=None,
+type_allocs_t7k = _safe_read_local_csv(
+    os.path.join(folder_path_local, 't7k', 'daily_type-allocs_t7k_type_allocs.csv'),
     stub_cols=['WIND', 'PV'],
     start='2018-01-01 00:00', end='2018-12-31 23:00')
 
 # Asset-level T7K
-asset_allocs_t7k = _safe_read_dropbox_csv(
-    f"{folder_path_dbx}/t7k/daily_type-allocs_t7k_asset_allocs.csv",
-    fallback_local=None,
+asset_allocs_t7k = _safe_read_local_csv(
+    os.path.join(folder_path_local, 't7k', 'daily_type-allocs_t7k_asset_allocs.csv'),
     stub_cols=['Asset-1', 'Asset-2'],
     start='2018-01-01 00:00', end='2018-12-31 23:00')
 

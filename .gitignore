@@ -154,3 +154,9 @@ data/scenarios_data/
 
 .DS_Store
 pages/.DS_Store
+data/Vatic_Grids/.DS_Store
+data/reliability_cost_index_data/rts/daily_type-allocs_rts_asset_allocs.csv
+data/reliability_cost_index_data/rts/daily_type-allocs_rts_type_allocs.csv
+data/reliability_cost_index_data/t7k/daily_type-allocs_t7k_asset_allocs.csv
+data/reliability_cost_index_data/t7k/daily_type-allocs_t7k_type_allocs.csv
+data/Vatic_Grids/.DS_Store

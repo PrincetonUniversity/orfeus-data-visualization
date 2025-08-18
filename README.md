@@ -11,6 +11,68 @@ pip install -r requirements.txt
 python app.py
 ```
 
+## Running locally (Conda)
+- Create and activate the environment from `environment.yml`:
+```
+conda env create -f environment.yml
+conda activate dashenv
+```
+- Optional: set environment variables (Dropbox and local PGScen directory):
+```
+export DROPBOX_APP_KEY="<your_key>"
+export DROPBOX_APP_SECRET="<your_secret>"
+export DROPBOX_REFRESH_TOKEN="<your_refresh_token>"
+# If you have PGScen CSVs locally (outside Docker), point the app to them
+export ORFEUS_PGSCEN_DIR="$PWD/data/PGscen_Scenarios"
+```
+- Run the app:
+```
+python app.py
+```
+- Optional: run on a custom port:
+```
+PORT=8056 python app.py
+```
+
+Tips
+- If the env already exists, update it: `conda env update -f environment.yml --prune`
+- If you use mamba: `mamba env create -f environment.yml`
+- macOS/zsh: export variables in the same shell session before running `python app.py`.
+
+## Running locally (uv)
+uv is a fast Python package manager from Astral. You can use it instead of pip/venv.
+
+- Create and activate a virtual environment:
+```
+uv venv .venv
+source .venv/bin/activate
+```
+- Install dependencies from `requirements.txt` (sync keeps the env exactly in sync):
+```
+uv pip sync requirements.txt
+```
+- Optional: set environment variables (Dropbox and local PGScen directory):
+```
+export DROPBOX_APP_KEY="<your_key>"
+export DROPBOX_APP_SECRET="<your_secret>"
+export DROPBOX_REFRESH_TOKEN="<your_refresh_token>"
+export ORFEUS_PGSCEN_DIR="$PWD/data/PGscen_Scenarios"
+```
+- Run the app (either works):
+```
+uv run app.py
+# or
+python app.py
+```
+- Optional: choose a port:
+```
+PORT=8056 uv run app.py
+```
+
+Notes
+- Install uv: https://docs.astral.sh/uv/getting-started/installation/
+- You can also use `uv pip install -r requirements.txt` if you don’t need syncing behavior.
+
 ## Container build and run
 Build the image:
 ```
@@ -32,6 +94,35 @@ docker run --rm -p 8055:8055 \
 ## Notes
 - The app reads local data from `data/` under the project root. In Docker, mount your data directory to `/app/data` so the app can find it.
 - Dropbox credentials are optional; when set via env the app will read from Dropbox as well.
+
+Expected local data layout under `data/` (used when available):
+
+- Scenarios (CSV per-day/per-asset):
+  - `data/scenarios_data/rts-scens-csv/<YYYYMMDD>/{load|wind|solar}/<ASSET_ID>.csv`
+  - `data/scenarios_data/t7k-scens-csv/<YYYYMMDD>/{load|wind|solar}/<ASSET_ID>.csv`
+  - The app will also look in `.../{notuning|tuning}/<YYYYMMDD>/{load|wind|solar}/<ASSET_ID>.csv` if present.
+- LMPs (compressed pickles used by the LMP page):
+  - `data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/<YYYY-MM-DD>.p.gz`
+- Grid topology for Texas-7k (used to plot buses/branches):
+  - `data/Vatic_Grids/Texas-7k/TX_Data/SourceData/bus.csv`
+  - `data/Vatic_Grids/Texas-7k/TX_Data/SourceData/branch.csv`
+  - `data/Vatic_Grids/Texas-7k/TX_Data/SourceData/gen.csv`
+- Tuning summary CSVs (used to populate asset lists and defaults):
+  - `data/tuning_final_files/*.csv`
+  - `data/tuning_final_files/texas7k/*.csv`
+  - `data/tuning_final_files/texas7k/pca/*.csv`
+- Optional PGScen scenarios (if you set `ORFEUS_PGSCEN_DIR` for local use outside Docker):
+  - `data/PGscen_Scenarios/**` containing files like `varios_<type>_<year>_.csv.gz` or `escores_<type>_<year>_.csv.gz`.
+
+Risk Allocation data:
+- The Risk Allocation page now reads daily aggregates from local CSVs under `data/reliability_cost_index_data/`.
+  - RTS (2020):
+    - `data/reliability_cost_index_data/rts/daily_type-allocs_rts_type_allocs.csv`
+    - `data/reliability_cost_index_data/rts/daily_type-allocs_rts_asset_allocs.csv`
+  - Texas-7k (2018):
+    - `data/reliability_cost_index_data/t7k/daily_type-allocs_t7k_type_allocs.csv`
+    - `data/reliability_cost_index_data/t7k/daily_type-allocs_t7k_asset_allocs.csv`
+  - If these files are missing, the app will display zero-filled stub series for the expected date ranges.
 
 ## Styling
 
