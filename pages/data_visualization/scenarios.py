@@ -9,11 +9,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 import dash_bootstrap_components as dbc
-from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR
+from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR, dbx, HAS_DROPBOX
 from utils.md import load_markdown
 markdown_text_scenario = load_markdown('markdown', 'scenarios.md')
 import dash
-from app import dbx, HAS_DROPBOX
 dash.register_page(__name__, path='/scenariovisualize', name='Scenarios', order=1)
 
 # Optional local PGScen scenarios directory (from another repo)
@@ -180,7 +179,7 @@ html_div_scenariooverview = html.Div(children=[
 
     html.Div([
     dcc.Markdown(children=markdown_text_scenario,
-             className='markdown'),
+             className='markdown')
 
     ],
         className='section')

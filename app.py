@@ -77,3 +77,9 @@ def _toggle_navbar_collapse(n, is_open):
         return not (is_open or False)
     return is_open
 
+
+if __name__ == "__main__":
+    # Local development entrypoint
+    port = int(os.getenv("PORT", "8055"))
+    app.run_server(debug=True, port=port)
+

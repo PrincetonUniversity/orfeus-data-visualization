@@ -12,11 +12,10 @@ import plotly.graph_objects as go
 
 import dash
 import dash_bootstrap_components as dbc
-from inputs.inputs import date_values_t7k, bus, branch
+from inputs.inputs import date_values_t7k, bus, branch, dbx, HAS_DROPBOX
 from utils.md import load_markdown
 markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
 markdown_text_lmps_plot = load_markdown('markdown', 'lmps_plot.md')
-from app import dbx, HAS_DROPBOX
 dash.register_page(__name__, path='/lmpplot', name='LMPs', order=3)
 
 # geographical plot token

@@ -4,6 +4,6 @@ The ORFEUS platform is a set of asset-specific modules which calibrate stochasti
 
 Models are linked through a high-dimensional correlation constructor which renders spatial and temporal correlation structure tractable via LASSO-based methods and parametric representations of locational correlation structure.
 
-For data generated with our open-source scenario generation toolkit, see the PGscen repository:
+For more details on scenario generation, see the PGScen repository:
 
-- Link to our scenario generation PGscen GitHub repo: https://github.com/PrincetonUniversity/PGscen
+- Link to our scenario generation PGScen GitHub repo: https://github.com/PrincetonUniversity/PGscen

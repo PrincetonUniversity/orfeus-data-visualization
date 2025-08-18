@@ -4,7 +4,27 @@ import pandas as pd
 from typing import List, Optional
 from datetime import date, timedelta, datetime
 
-from app import dbx, HAS_DROPBOX
+# Local Dropbox configuration to avoid importing the Dash app (prevents circular imports)
+try:
+    import dropbox  # type: ignore
+except Exception:
+    dropbox = None
+
+APP_KEY = os.getenv("DROPBOX_APP_KEY")
+APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
+
+dbx = None
+HAS_DROPBOX = False
+if dropbox is not None and APP_KEY and APP_SECRET and REFRESH_TOKEN:
+    try:
+        dbx = dropbox.Dropbox(app_key=APP_KEY,
+                              app_secret=APP_SECRET,
+                              oauth2_refresh_token=REFRESH_TOKEN)
+        HAS_DROPBOX = True
+    except Exception:
+        dbx = None
+        HAS_DROPBOX = False
 
 # Resolve project root based on this file location so it works from any CWD
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
