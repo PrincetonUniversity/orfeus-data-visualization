@@ -151,5 +151,3 @@ cython_debug/
 
 .DS_Store
 data/
-data/Vatic_Grids
-data/tuning_final_files
