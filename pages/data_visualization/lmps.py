@@ -1,6 +1,7 @@
 import io
 import os
 import bz2
+import gzip
 import numpy as np
 import pandas as pd
 from datetime import date, timedelta, datetime
@@ -18,9 +19,9 @@ markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
 markdown_text_lmps_plot = load_markdown('markdown', 'lmps_plot.md')
 dash.register_page(__name__, path='/lmpplot', name='LMPs', order=3)
 
-# geographical plot token
-PLOT_TOKEN = 'pk.eyJ1IjoiZmFuZ2oxIiwiYSI6ImNsZDBoY2JseTAxaDUzb3NzMGx3NG5pNDAifQ' \
-             '.3vAgWckVvvRuo5S6aeD_Mg'
+# Mapbox token/style via environment, fallback to OpenStreetMap if missing
+PLOT_TOKEN = os.getenv('MAPBOX_TOKEN') or os.getenv('DASH_MAPBOX_TOKEN') or None
+PLOT_STYLE = os.getenv('MAPBOX_STYLE') or ('light' if PLOT_TOKEN else 'open-street-map')
 
 html_div_lmps_overview =  html.Div(children=[
 
@@ -81,13 +82,21 @@ layout = html.Div([
 
 def plot_particular_hour(hr, bus_detail, line_detail):
     # Manually Set up Discrete Color Scale
-    bus_detail_hr = bus_detail[bus_detail['Hour'] == hr]
-    line_detail_hr = line_detail[line_detail['Hour'] == hr]
+    # Filter to hour and work on copies to avoid SettingWithCopy warnings
+    bus_detail_hr = bus_detail.loc[bus_detail['Hour'] == hr].copy()
+    line_detail_hr = line_detail.loc[line_detail['Hour'] == hr].copy()
 
     line_detail_hr['Flow'] = line_detail_hr['Flow'].apply(
         lambda x: round(x, 2))
     line_detail_hr['UID_Flow'] = line_detail_hr['UID'].astype(str) + ': ' + \
                                  line_detail_hr['Flow'].astype(str)
+
+    # Ensure numeric and valid coordinates to avoid Mapbox extent warnings
+    bus_detail_hr['lat'] = pd.to_numeric(bus_detail_hr['lat'], errors='coerce')
+    bus_detail_hr['lng'] = pd.to_numeric(bus_detail_hr['lng'], errors='coerce')
+    bus_detail_hr = bus_detail_hr.dropna(subset=['lat', 'lng'])
+    bus_detail_hr = bus_detail_hr[(bus_detail_hr['lat'].between(-90, 90)) &
+                                   (bus_detail_hr['lng'].between(-180, 180))]
 
     bus_detail_hr['ABS LMP'] = bus_detail_hr['LMP'].apply(lambda x: abs(x))
     # The size would vary with LMP
@@ -114,6 +123,25 @@ def plot_particular_hour(hr, bus_detail, line_detail):
     line_detail_hr_highcongest = line_detail_hr[
         line_detail_hr['CongestionRatio'] >= 0.98] \
         .reset_index().sort_values(by=['CongestionRatio'])
+    # Filter invalid coordinates for line endpoints
+    for col in ['From Bus Lat', 'From Bus Lng', 'To Bus Lat', 'To Bus Lng']:
+        line_detail_hr_highcongest[col] = pd.to_numeric(line_detail_hr_highcongest[col], errors='coerce')
+    line_detail_hr_highcongest = line_detail_hr_highcongest.dropna(subset=['From Bus Lat', 'From Bus Lng', 'To Bus Lat', 'To Bus Lng'])
+    line_detail_hr_highcongest = line_detail_hr_highcongest[
+        line_detail_hr_highcongest['From Bus Lat'].between(-90, 90) &
+        line_detail_hr_highcongest['To Bus Lat'].between(-90, 90) &
+        line_detail_hr_highcongest['From Bus Lng'].between(-180, 180) &
+        line_detail_hr_highcongest['To Bus Lng'].between(-180, 180)
+    ]
+
+    # Cap the number of rendered congested lines to reduce geometry load
+    try:
+        max_lines = int(os.getenv('LMP_MAX_LINE_TRACES', '500'))
+    except Exception:
+        max_lines = 500
+    if line_detail_hr_highcongest.shape[0] > max_lines:
+        # Keep the most congested lines (highest ratio)
+        line_detail_hr_highcongest = line_detail_hr_highcongest.tail(max_lines)
 
     bus_highcongest = set(line_detail_hr_highcongest['To Bus'].unique()).union(
         set(line_detail_hr_highcongest['From Bus'].unique()))
@@ -163,6 +191,7 @@ def plot_particular_hour(hr, bus_detail, line_detail):
         hovermode='closest',
         mapbox=dict(
             accesstoken=PLOT_TOKEN,
+            style=PLOT_STYLE,
             bearing=0,
             center=go.layout.mapbox.Center(
                 lat=31,
@@ -213,7 +242,7 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                               '<extra><br>ToLMP={ToLMP:.2f}</extra>'.format(
                                   ToLMP=tolmp),
                 line=dict(
-                    width=5 + line_detail_hr.iloc[0]['CongestionRatio'] * 10,
+                    width=5 + float(line_detail_hr_row['CongestionRatio']) * 10,
                     color=bluepurplered[-1]), opacity=1,
                 name='Congested Lines', legendgroup='Congested Lines'
             ))
@@ -246,15 +275,48 @@ def plot_particular_hour(hr, bus_detail, line_detail):
     fig1.data[-1].showlegend = True
     return fig1, line_detail_hr_highcongest
 
+
+def _extract_bus_line(obj):
+    """Return (bus_detail_df, line_detail_df) from a pickle object with varying keys.
+
+    Accepts common variants: 'bus_detail'|'bus'|'bus_df'|'buses' and
+    'line_detail'|'line'|'line_df'|'lines'. Avoids DataFrame truthiness.
+    """
+    bus_df = None
+    for k in ("bus_detail", "bus", "bus_df", "buses"):
+        val = obj.get(k)
+        if isinstance(val, pd.DataFrame):
+            bus_df = val.reset_index()
+            break
+    line_df = None
+    for k in ("line_detail", "line", "line_df", "lines"):
+        val = obj.get(k)
+        if isinstance(val, pd.DataFrame):
+            line_df = val.reset_index()
+            break
+    if bus_df is None or line_df is None:
+        raise ValueError("Pickle missing required bus/line DataFrames")
+    return bus_df, line_df
+
 def build_lmp_plot_file(file_name, bus, branch):
     file_path = '/ORFEUS-Alice/data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/{}'.format(file_name)
     df_pickle = None
     if HAS_DROPBOX and dbx is not None:
         try:
             _, res = dbx.files_download(file_path)
-            with io.BytesIO(res.content) as stream:
-                with bz2.BZ2File(stream, 'r') as f:
-                    df_pickle = pickle.load(f)
+            byts = res.content
+            # Try bz2 first, then gzip
+            try:
+                with io.BytesIO(byts) as stream:
+                    with bz2.BZ2File(stream, 'r') as f:
+                        df_pickle = pickle.load(f)
+            except Exception:
+                try:
+                    with io.BytesIO(byts) as stream:
+                        with gzip.GzipFile(fileobj=stream, mode='r') as f:
+                            df_pickle = pickle.load(f)
+                except Exception:
+                    df_pickle = None
         except Exception:
             df_pickle = None
     if df_pickle is None:
@@ -263,8 +325,16 @@ def build_lmp_plot_file(file_name, bus, branch):
         root = os.path.abspath(os.path.join(cwd, '../../'))
         local_path = os.path.join(root, 'data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20', file_name)
         if os.path.exists(local_path):
-            with bz2.BZ2File(local_path, 'r') as f:
-                df_pickle = pickle.load(f)
+            # Try bz2 then gzip
+            try:
+                with bz2.BZ2File(local_path, 'r') as f:
+                    df_pickle = pickle.load(f)
+            except Exception:
+                try:
+                    with gzip.open(local_path, 'rb') as f:
+                        df_pickle = pickle.load(f)
+                except Exception:
+                    df_pickle = None
     if df_pickle is None:
         # minimal stub
         bus_name = bus['Bus Name'].iloc[0]
@@ -284,8 +354,8 @@ def build_lmp_plot_file(file_name, bus, branch):
             'Flow': [0.0]*24,
         })
     else:
-        bus_detail = df_pickle['bus_detail'].reset_index()
-        line_detail = df_pickle['line_detail'].reset_index()
+        # Support multiple pickle schemas
+        bus_detail, line_detail = _extract_bus_line(df_pickle)
 
     line_detail = pd.merge(line_detail, branch[['UID', 'From Bus', 'To Bus',
                                                 'From Name', 'To Name',

@@ -11,10 +11,10 @@ markdown_text_riskalloc = load_markdown('markdown', 'allocation.md')
 dash.register_page(__name__, path='/riskallocplot', name='Risk Allocation', order=2)
 
 today = date.today()
-yesterdate_verbal = (today - timedelta(1)).strftime("%b %d, %Y").split(',')[0]
+yesterdate_verbal = (today - timedelta(1)).strftime("%b %d")
 yesterdate = (today - timedelta(1)).strftime("%y-%m-%d")[3:]
 
-todaydate_verbal = today.strftime("%b %d, %Y").split(',')[0]
+todaydate_verbal = today.strftime("%b %d")
 todaydate = today.strftime("%y-%m-%d")[3:]
 
 # Risk Alloc Asset IDs
@@ -99,11 +99,7 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
             , justify='start', align='start')
 
 
-    if label == 'RTS':
-        asset_level_index_title = 'Asset Level Reliability Cost Index on {}'.format(
-                        yesterdate_verbal)
-    else:
-        asset_level_index_title = 'Average of Asset Level Reliability Cost Index Across Days'
+    asset_level_index_title = 'Asset Level Reliability Cost Index on {}'.format(yesterdate_verbal)
 
     html_asset_level_index = html.Div(children = [
         dbc.Row(
@@ -219,10 +215,10 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
 
     if label == 'RTS':
         tab_children = [dbc_asset_type_title, dbc_rtpv_index, dbc_solar_index, dbc_wind_index,
-                        html_asset_level_index, html_asset_type_plot, html_asset_level_plot]
+                        html_asset_level_index, html_asset_level_plot, html_asset_type_plot]
     else:
         tab_children = [dbc_asset_type_title, dbc_solar_index, dbc_wind_index,
-                        html_asset_level_index, html_asset_type_plot, html_asset_level_plot]
+                        html_asset_level_index, html_asset_level_plot, html_asset_type_plot]
 
     dcc_tab = dcc.Tab(label= label, children=tab_children,
                                     className='tab',
@@ -364,7 +360,7 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
     Input('rts-type-allocs-1week', 'n_clicks'),
     Input('rts-type-allocs-hist', 'n_clicks')
 )
-def plot_mean_asset_type_risk_alloc_daterange(btn1, btn2, btn3):
+def plot_mean_asset_type_risk_alloc_daterange_rts(btn1, btn2, btn3):
     if "rts-type-allocs-1day" == ctx.triggered_id:
         fig = plot_mean_asset_type_risk_alloc(type_allocs_rts, version='RTS',
                                               period='1day')
@@ -387,7 +383,7 @@ def plot_mean_asset_type_risk_alloc_daterange(btn1, btn2, btn3):
     Input('rts-asset-allocs-1week', 'n_clicks'),
     Input('rts-asset-allocs-hist', 'n_clicks')
 )
-def asset_ids_risk_alloc(asset_id, button1, button2, button3):
+def asset_ids_risk_alloc_rts(asset_id, button1, button2, button3):
     if "rts-asset-allocs-1day" == ctx.triggered_id:
         fig_asset_allocs = plot_mean_asset_type_risk_alloc(asset_allocs_rts,
                                                            version='RTS',
@@ -436,7 +432,7 @@ def find_daily_index_asset_id(asset_id):
     Input('t7k-type-allocs-1week', 'n_clicks'),
     Input('t7k-type-allocs-hist', 'n_clicks')
 )
-def plot_mean_asset_type_risk_alloc_daterange(btn1, btn2, btn3):
+def plot_mean_asset_type_risk_alloc_daterange_t7k(btn1, btn2, btn3):
     if "t7k-type-allocs-1day" == ctx.triggered_id:
         fig = plot_mean_asset_type_risk_alloc(type_allocs_t7k, version='T7K',
                                               period='1day')
@@ -458,7 +454,7 @@ def plot_mean_asset_type_risk_alloc_daterange(btn1, btn2, btn3):
     Input('t7k-asset-allocs-1week', 'n_clicks'),
     Input('t7k-asset-allocs-hist', 'n_clicks')
 )
-def asset_ids_risk_alloc(asset_id, button1, button2, button3):
+def asset_ids_risk_alloc_t7k(asset_id, button1, button2, button3):
     if "t7k-asset-allocs-1day" == ctx.triggered_id:
         fig_asset_allocs = plot_mean_asset_type_risk_alloc(asset_allocs_t7k,
                                                            version='T7K',
@@ -490,11 +486,12 @@ def asset_ids_risk_alloc(asset_id, button1, button2, button3):
     Output('daily_index_asset_id_t7k', 'children'),
     Input('asset_ids_risk_alloc_t7k', 'value'))
 def find_daily_index_asset_id_t7k(asset_id_t7k):
-    index = asset_allocs_t7k[asset_id_t7k].mean()
+    # Use the daily-filtered aggregation (consistent with RTS)
+    index = asset_allocs_t7k_day[asset_id_t7k]
     return f'{asset_id_t7k}: {index:.2f}'
 
 @dash.callback(
     Output('asset_id_in_plot_title_t7k', 'children'),
     Input('asset_ids_risk_alloc_t7k', 'value'))
-def find_daily_index_asset_id_t7k(asset_id_t7k):
+def set_asset_id_in_plot_title_t7k(asset_id_t7k):
     return f'{asset_id_t7k}'

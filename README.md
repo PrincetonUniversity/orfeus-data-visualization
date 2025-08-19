@@ -151,3 +151,29 @@ Static page copy lives in plain Markdown files under `markdown/` so non-programm
 - `markdown/allocation.md` → Overview text on the Risk Allocation page
 
 These are read at runtime via `utils/md.py:load_markdown(...)`. Update the `.md` files and refresh the app to see changes.
+
+## Validate LMP pickle files (CLI)
+
+A helper script validates LMP `.p.gz` files for the LMP page.
+
+- Script: `utils/validate_lmp_pickle.py`
+- Run from the project root:
+```
+python utils/validate_lmp_pickle.py data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/2018-01-02.p.gz
+```
+- With custom grid CSVs (optional; improves join checks):
+```
+python utils/validate_lmp_pickle.py /abs/path/2018-01-02.p.gz \
+  --bus-csv /abs/path/bus.csv \
+  --branch-csv /abs/path/branch.csv
+```
+
+What it checks
+- Pickle loads (bz2 first, gzip as fallback) and is a dict with `bus_detail` and `line_detail` DataFrames
+- Required columns: bus_detail {Bus, Hour, LMP, Demand, Date, Mismatch}, line_detail {Line, Hour, Flow}
+- Hour values within 0..23; numeric types for LMP/Demand/Flow
+- Best-effort check that filename date (YYYY-MM-DD) appears in `bus_detail['Date']`
+- Optional join coverage to grid CSVs (Bus Name→Bus ID, Line→UID)
+
+Exit codes
+- 0 = PASS, non-zero = validation error
