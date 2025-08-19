@@ -1,0 +1,34 @@
+type: Microsoft.App/containerApps
+# Sanitized template for Azure Container Apps. Replace <> placeholders before use.
+name: <APP_NAME>
+location: <LOCATION>               # e.g., eastus
+identity:
+  type: SystemAssigned
+properties:
+  managedEnvironmentId: <ENV_RESOURCE_ID>  # /subscriptions/.../resourceGroups/.../providers/Microsoft.App/managedEnvironments/<ENV_NAME>
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      allowInsecure: false
+      targetPort: 8055
+    registries:
+    - identity: system
+      server: <ACR_SERVER>         # e.g., myacr.azurecr.io
+  template:
+    containers:
+    - name: <APP_NAME>
+      image: <ACR_SERVER>/<IMAGE_NAME>:<TAG>
+      env:
+      - name: PORT
+        value: '8055'
+      resources:
+        cpu: 0.5
+        memory: 1Gi
+      volumeMounts:
+      - volumeName: <SHARE_NAME>
+        mountPath: /app/data
+        readOnly: true
+    volumes:
+    - name: <SHARE_NAME>
+      storageName: <SHARE_NAME>    # must match env storage name configured in the ACA environment

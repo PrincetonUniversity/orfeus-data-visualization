@@ -177,3 +177,88 @@ What it checks
 
 Exit codes
 - 0 = PASS, non-zero = validation error
+
+## Deploy to Azure Container Apps (HTTPS with Azure Files at /app/data)
+
+This repo includes a sanitized `app.yaml` template (no secrets). Use it to mount an Azure Files share at `/app/data`.
+
+High-level
+- Build the image in ACR, create a Storage Account + Files share, create a Log Analytics workspace and Container Apps environment, deploy the app with HTTPS-only ingress to port 8055, then apply `app.yaml` to add the read-only volume mount.
+
+Prereqs
+- Azure CLI with the Container Apps extension: `az extension add -n containerapp --upgrade`
+- Resource providers registered: `Microsoft.ContainerRegistry`, `Microsoft.App`, `Microsoft.OperationalInsights`, `Microsoft.Insights`, `Microsoft.Storage`
+
+Suggested steps (bash/zsh)
+```
+# Subscription
+SUB_ID="<your-subscription-guid>"
+az account set --subscription "$SUB_ID"
+
+# Register providers (re-run until all show Registered)
+for ns in Microsoft.ContainerRegistry Microsoft.App Microsoft.OperationalInsights Microsoft.Insights Microsoft.Storage; do
+  az provider register --namespace "$ns"
+done
+for ns in Microsoft.ContainerRegistry Microsoft.App Microsoft.OperationalInsights Microsoft.Insights Microsoft.Storage; do
+  echo -n "$ns: "; az provider show -n "$ns" --query registrationState -o tsv
+done
+
+# Variables
+location="eastus"; rg="orfeus-rg"; acr="orfeusacr$RANDOM"; sa="orfeusdata$RANDOM"; share="data"
+workspace="orfeus-law"; envname="orfeus-env"; appname="orfeus-app"; image="orfeus-app:latest"; port=8055
+
+# Group + ACR + build
+az group create -n "$rg" -l "$location"
+az acr create -g "$rg" -n "$acr" --sku Basic
+az acr build --registry "$acr" --image "$image" .
+
+# Storage + Files (ReadOnly mount planned)
+az storage account create -n "$sa" -g "$rg" -l "$location" --sku Standard_LRS --kind StorageV2
+az storage share create --name "$share" --account-name "$sa"
+sa_key=$(az storage account keys list -g "$rg" -n "$sa" --query "[0].value" -o tsv)
+
+# Log Analytics + Container Apps env
+law_cid=$(az monitor log-analytics workspace show -g "$rg" -n "$workspace" --query customerId -o tsv)
+law_key=$(az monitor log-analytics workspace get-shared-keys -g "$rg" -n "$workspace" --query primarySharedKey -o tsv)
+az containerapp env create -n "$envname" -g "$rg" \
+  --location "$location" \
+  --logs-workspace-id "$law_cid" \
+  --logs-workspace-key "$law_key"
+
+# Environment storage (Azure Files, ReadOnly)
+az containerapp env storage set \
+  --name "$envname" -g "$rg" \
+  --storage-name "$share" \
+  --access-mode ReadOnly \
+  --account-name "$sa" \
+  --azure-file-account-key "$sa_key" \
+  --azure-file-share-name "$share"
+
+# App (HTTPS-only, target-port 8055)
+az containerapp create -n "$appname" -g "$rg" \
+  --environment "$envname" \
+  --image "$acr.azurecr.io/$image" \
+  --registry-server "$acr.azurecr.io" \
+  --registry-identity system \
+  --target-port $port \
+  --ingress external \
+  --env-vars PORT=$port
+az containerapp ingress enable --name "$appname" -g "$rg" --target-port $port --type external --allow-insecure false
+
+# Mount Azure Files using app.yaml (edit placeholders first)
+az containerapp update -n "$appname" -g "$rg" --yaml app.yaml
+
+# Grant AcrPull to the app identity
+app_principal=$(az containerapp show -n "$appname" -g "$rg" --query "identity.principalId" -o tsv)
+acr_id=$(az acr show -n "$acr" -g "$rg" --query id -o tsv)
+az role assignment create --assignee "$app_principal" --role AcrPull --scope "$acr_id"
+
+# Public URL & logs
+az containerapp show -n "$appname" -g "$rg" --query properties.configuration.ingress.fqdn -o tsv
+az containerapp logs show -n "$appname" -g "$rg" --follow --tail 100
+```
+
+app.yaml template
+- `app.yaml` is sanitized. Replace placeholders: `<APP_NAME>`, `<LOCATION>`, `<ENV_RESOURCE_ID>`, `<ACR_SERVER>`, `<IMAGE_NAME>`, `<TAG>`, `<SHARE_NAME>`.
+- Apply with: `az containerapp update -n "$appname" -g "$rg" --yaml app.yaml`
+- Do not commit live resource IDs/secrets.
