@@ -98,6 +98,24 @@ def plot_particular_hour(hr, bus_detail, line_detail):
     bus_detail_hr = bus_detail_hr[(bus_detail_hr['lat'].between(-90, 90)) &
                                    (bus_detail_hr['lng'].between(-180, 180))]
 
+    # If no bus data for this hour, return an empty map with a helpful title
+    if bus_detail_hr.empty:
+        fig_empty = go.Figure()
+        fig_empty.update_layout(
+            hovermode='closest',
+            mapbox=dict(
+                accesstoken=PLOT_TOKEN,
+                style=PLOT_STYLE,
+                bearing=0,
+                center=go.layout.mapbox.Center(lat=31, lon=-99.9018),
+                pitch=0,
+                zoom=4.5,
+            ),
+            title=f"No data available for Hr {hr}",
+            height=600, width=1000
+        )
+        return fig_empty, line_detail_hr.iloc[0:0]
+
     bus_detail_hr['ABS LMP'] = bus_detail_hr['LMP'].apply(lambda x: abs(x))
     # The size would vary with LMP
     bus_detail_hr['size'] = bus_detail_hr['ABS LMP']
@@ -177,15 +195,17 @@ def plot_particular_hour(hr, bus_detail, line_detail):
         line_detail_hr_mismatch = line_detail_hr[
             line_detail_hr['From Bus'].isin(busids_mismatch) |
             line_detail_hr['To Bus'].isin(busids_mismatch)]
-    fig_mismatch = px.scatter_mapbox(bus_detail_mismatch, lat="lat",
-                     lon="lng", color="LMP", opacity=1.0,
-                     size='size',
-                     hover_name='Bus Name',
-                     hover_data=['Bus ID', 'LMP',
-                             'Mismatch', 'Demand',
-                             'GEN UID'],
-                     size_max=15, zoom=1)
-    fig.add_trace(fig_mismatch.data[0])
+    if not bus_detail_mismatch.empty:
+        fig_mismatch = px.scatter_mapbox(bus_detail_mismatch, lat="lat",
+                         lon="lng", color="LMP", opacity=1.0,
+                         size='size',
+                         hover_name='Bus Name',
+                         hover_data=['Bus ID', 'LMP',
+                                 'Mismatch', 'Demand',
+                                 'GEN UID'],
+                         size_max=15, zoom=1)
+        if len(fig_mismatch.data) > 0:
+            fig.add_trace(fig_mismatch.data[0])
 
     fig.update_layout(
         hovermode='closest',
@@ -208,12 +228,17 @@ def plot_particular_hour(hr, bus_detail, line_detail):
     # plot high congestion bus so we could hover them even if they overlap with other buses in same location
     # Plot Transmission Lines Related to Mismatch Buses
 
-    bluepurplered = n_colors('rgb(0, 0, 255)', 'rgb(255, 0, 0)',
-                             line_detail_hr_highcongest.shape[0],
-                             colortype='rgb')
-    # Fix decimal point imprecision
-    bluepurplered[0] = 'rgb(0, 0, 255)'
-    bluepurplered[-1] = 'rgb(255, 0, 0)'
+    # Build a colorscale for congested lines; avoid n_colors for 0 or 1 (division by zero)
+    num_lines = int(line_detail_hr_highcongest.shape[0])
+    if num_lines >= 2:
+        bluepurplered = n_colors('rgb(0, 0, 255)', 'rgb(255, 0, 0)', num_lines, colortype='rgb')
+        # Fix decimal point imprecision at the ends
+        bluepurplered[0] = 'rgb(0, 0, 255)'
+        bluepurplered[-1] = 'rgb(255, 0, 0)'
+    elif num_lines == 1:
+        bluepurplered = ['rgb(255, 0, 0)']
+    else:
+        bluepurplered = []
 
     # Plot line details
     if line_detail_hr_highcongest.shape[0] != 0:
@@ -247,13 +272,31 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                 name='Congested Lines', legendgroup='Congested Lines'
             ))
 
-    fig1.update_layout(title='LMPs Distribution at Hr {}, {} under Texas 7k Grid'.format(hr,
-                                                                     bus_detail_hr[
-                                                                         'Date'].unique()[
-                                                                         0]),
+    date_label = None
+    try:
+        date_label = bus_detail_hr['Date'].iloc[0]
+    except Exception:
+        date_label = ''
+    fig1.update_layout(title='LMPs Distribution at Hr {}, {} under Texas 7k Grid'.format(hr, date_label),
                        legend=dict(x=1, y=1),
                        coloraxis_colorbar=dict(orientation="h"),
                        height=600, width=1000)
+
+    # Subtle note when there are no congested lines to plot
+    if int(line_detail_hr_highcongest.shape[0]) == 0:
+        fig1.add_annotation(
+            text="No congested lines for this hour",
+            xref="paper",
+            yref="paper",
+            x=1,
+            y=0,
+            xanchor="right",
+            yanchor="bottom",
+            font=dict(size=11, color="#666"),
+            bgcolor="rgba(255,255,255,0.6)",
+            bordercolor="rgba(0,0,0,0)",
+            showarrow=False,
+        )
 
     for i in range(line_detail_hr_highcongest.shape[0]):
         fig1.data[-(1 + i)].showlegend = False
