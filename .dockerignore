@@ -29,5 +29,6 @@ __pycache__/
 # Node
 node_modules/
 
-# Project data (mounted at runtime; exclude from image)
+# Project data (mounted at runtime; exclude from image; do not send to build context)
 data/
+data/**

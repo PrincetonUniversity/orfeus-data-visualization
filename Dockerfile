@@ -18,8 +18,18 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copy app source
-COPY . .
+# Copy only necessary application files (avoid bringing data/ into the image)
+COPY app.py wsgi.py __init__.py ./
+COPY assets/ assets/
+COPY pages/ pages/
+COPY inputs/ inputs/
+COPY utils/ utils/
+COPY markdown/ markdown/
+# If styles/ is still used anywhere, include it; safe to copy
+COPY styles/ styles/
+
+# Ensure runtime mount point exists even when volume not attached
+RUN mkdir -p /app/data
 
 EXPOSE 8055
 
