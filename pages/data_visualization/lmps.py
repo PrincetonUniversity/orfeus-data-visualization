@@ -1,18 +1,18 @@
-import io
 import os
+import io
 import bz2
 import gzip
+from datetime import date, timedelta, datetime
+
 import numpy as np
 import pandas as pd
-from datetime import date, timedelta, datetime
 import dill as pickle
-from dash import html, dcc, Input, Output, ctx
 import plotly.express as px
-from plotly.colors import n_colors
 import plotly.graph_objects as go
+from plotly.colors import n_colors
 
-import dash
-import dash_bootstrap_components as dbc
+from utils.ui import html, dcc, Input, Output, ctx, dbc, dash
+from utils.config import SETTINGS
 from inputs.inputs import date_values_t7k, bus, branch, dbx, HAS_DROPBOX
 from utils.md import load_markdown
 markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
@@ -20,8 +20,8 @@ markdown_text_lmps_plot = load_markdown('markdown', 'lmps_plot.md')
 dash.register_page(__name__, path='/lmpplot', name='LMPs', order=3)
 
 # Mapbox token/style via environment, fallback to OpenStreetMap if missing
-PLOT_TOKEN = os.getenv('MAPBOX_TOKEN') or os.getenv('DASH_MAPBOX_TOKEN') or None
-PLOT_STYLE = os.getenv('MAPBOX_STYLE') or ('light' if PLOT_TOKEN else 'open-street-map')
+PLOT_TOKEN = SETTINGS.mapbox_token
+PLOT_STYLE = SETTINGS.mapbox_style or ('light' if PLOT_TOKEN else 'open-street-map')
 
 html_div_lmps_overview =  html.Div(children=[
 

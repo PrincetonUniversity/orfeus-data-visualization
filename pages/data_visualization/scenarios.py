@@ -4,19 +4,18 @@ import glob
 import numpy as np
 import pandas as pd
 from datetime import timedelta, datetime
-from dash import html, dcc, Input, Output
+from utils.ui import html, dcc, Input, Output, dbc, dash
 import plotly.express as px
 import plotly.graph_objects as go
 
-import dash_bootstrap_components as dbc
 from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR, dbx, HAS_DROPBOX
+from utils.config import SETTINGS
 from utils.md import load_markdown
 markdown_text_scenario = load_markdown('markdown', 'scenarios.md')
-import dash
 dash.register_page(__name__, path='/scenariovisualize', name='Scenarios', order=1)
 
 # Optional local PGScen scenarios directory (from another repo)
-PGSCEN_DIR = os.getenv('ORFEUS_PGSCEN_DIR', os.path.join(ROOT_DIR, 'data', 'PGscen_Scenarios'))
+PGSCEN_DIR = str(SETTINGS.pgscen_dir)
 
 def _try_build_fig_from_pgscen(version: str, day: str, energy_type: str):
     """Try to build a scenarios figure from local PGScen CSV.GZ files.

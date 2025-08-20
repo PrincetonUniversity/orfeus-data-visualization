@@ -1,181 +1,212 @@
-import io
-import os, sys
-import pandas as pd
+from __future__ import annotations
+
+from pathlib import Path
 from typing import List, Optional
-from datetime import date, timedelta, datetime
 
-# Local Dropbox configuration to avoid importing the Dash app (prevents circular imports)
-try:
-    import dropbox  # type: ignore
-except Exception:
-    dropbox = None
+import os
 
-APP_KEY = os.getenv("DROPBOX_APP_KEY")
-APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
-REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
+import pandas as pd  # type: ignore
 
-dbx = None
-HAS_DROPBOX = False
-if dropbox is not None and APP_KEY and APP_SECRET and REFRESH_TOKEN:
+from utils.config import SETTINGS
+from utils.dropbox_client import get_dropbox
+
+
+# Expose root dir for other modules
+ROOT_DIR: str = str(SETTINGS.root_dir)
+
+# Dropbox client, so pages can import dbx/HAS_DROPBOX from here without importing Dash app
+dbx, HAS_DROPBOX = get_dropbox()
+
+
+def process_date_column(df: pd.DataFrame, date_column: str = 'time') -> pd.DataFrame:
+    """Ensure a 'time' datetime column exists.
+
+    Tries common patterns: existing 'time' column, alternative names
+    like 'Timestamp', 'Date', 'Unnamed: 0', or a datetime index. As a
+    last resort, creates an hourly range starting at 1970-01-01.
+    """
+    if df is None or df.empty:
+        return df
+
+    df2 = df.copy()
+
+    # Prefer an existing 'time' column
+    if 'time' in df2.columns:
+        # Normalize to tz-naive consistently (assume UTC if tz provided)
+        s = pd.to_datetime(df2['time'], errors='coerce', utc=True)
+        try:
+            s = s.dt.tz_convert(None)
+        except Exception:
+            # Already tz-naive
+            s = s.tz_localize(None) if hasattr(s.dt, 'tz_localize') else s
+        df2['time'] = s
+        return df2
+
+    # Try common alternative column names
+    alt_names = ['Time', 'timestamp', 'Timestamp', 'date', 'Date', 'Datetime', 'datetime', 'Unnamed: 0', 'index']
+    for name in alt_names:
+        if name in df2.columns:
+            df2 = df2.rename(columns={name: 'time'})
+            s = pd.to_datetime(df2['time'], errors='coerce', utc=True)
+            try:
+                s = s.dt.tz_convert(None)
+            except Exception:
+                s = s.tz_localize(None) if hasattr(s.dt, 'tz_localize') else s
+            df2['time'] = s
+            return df2
+
+    # If index is datetime-like, lift it into a column
     try:
-        dbx = dropbox.Dropbox(app_key=APP_KEY,
-                              app_secret=APP_SECRET,
-                              oauth2_refresh_token=REFRESH_TOKEN)
-        HAS_DROPBOX = True
+        if pd.api.types.is_datetime64_any_dtype(df2.index):
+            df2 = df2.reset_index().rename(columns={'index': 'time'})
+            s = pd.to_datetime(df2['time'], errors='coerce', utc=True)
+            try:
+                s = s.dt.tz_convert(None)
+            except Exception:
+                s = s.tz_localize(None) if hasattr(s.dt, 'tz_localize') else s
+            df2['time'] = s
+            return df2
     except Exception:
-        dbx = None
-        HAS_DROPBOX = False
+        pass
 
-# Resolve project root based on this file location so it works from any CWD
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
-# Import Dataset
-# PCA Rhos
-
-def process_date_column(df, date_column='index'):
-    df[date_column] = df[date_column].apply(
-        lambda x: datetime.strptime(x[:13], "%Y-%m-%d %H"))
-    df = df.rename(columns={'index': 'time'})
-    return df
-
-data_tuning_dir = os.path.join(ROOT_DIR, 'data', 'tuning_final_files')
-df_escores_rhos_solar_nonpca = pd.read_csv(
-    os.path.join(data_tuning_dir, f"{'escores'}_avg_on_tuning_{'solar'}_rhos.csv"))
-
-df_escores_rhos_load_nonpca = pd.read_csv(
-    os.path.join(data_tuning_dir, f"{'escores'}_avg_on_tuning_{'load'}_rhos.csv"))
-
-df_escores_rhos_wind_nonpca = pd.read_csv(
-    os.path.join(data_tuning_dir, f"{'escores'}_avg_on_tuning_{'wind'}_rhos.csv"))
-
-# Texas7K
-# PCA
-data_t7k_pca_dir = os.path.join(ROOT_DIR, 'data', 'tuning_final_files', 'texas7k', 'pca')
-df_escores_rhos_solar_pca_t7k = pd.read_csv(
-    os.path.join(data_t7k_pca_dir, f"{'escores'}_avg_on_tuning_{'solar'}_rhos.csv"))
+    # Fallback: synthesize an hourly timeline (will likely be filtered out later)
+    try:
+        df2.insert(0, 'time', pd.date_range('1970-01-01', periods=len(df2), freq='H'))
+    except Exception:
+        df2.insert(0, 'time', pd.Series([pd.NaT] * len(df2)))
+    return df2
 
 
-# NonPCA
-data_t7k_dir = os.path.join(ROOT_DIR, 'data', 'tuning_final_files', 'texas7k')
-df_escores_rhos_solar_nonpca_t7k = pd.read_csv(
-    os.path.join(data_t7k_dir, f"{'escores'}_avg_on_tuning_{'solar'}_rhos.csv"))
+# Paths
+data_tuning_dir = SETTINGS.root_dir / 'data' / 'tuning_final_files'
+data_t7k_pca_dir = data_tuning_dir / 'texas7k' / 'pca'
+data_t7k_dir = data_tuning_dir / 'texas7k'
 
-df_escores_rhos_load_nonpca_t7k = pd.read_csv(
-    os.path.join(data_t7k_dir, f"{'escores'}_avg_on_tuning_{'load'}_rhos.csv"))
 
-df_escores_rhos_wind_nonpca_t7k = pd.read_csv(
-    os.path.join(data_t7k_dir, f"{'escores'}_avg_on_tuning_{'wind'}_rhos.csv"))
+def _safe_read_csv(path: Path) -> pd.DataFrame:
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        # Return empty with guessed column name from filename
+        return pd.DataFrame()
+
+
+# Read CSVs (best-effort; tolerate missing local data)
+df_escores_rhos_solar_nonpca = _safe_read_csv(data_tuning_dir / 'escores_avg_on_tuning_solar_rhos.csv')
+df_escores_rhos_load_nonpca = _safe_read_csv(data_tuning_dir / 'escores_avg_on_tuning_load_rhos.csv')
+df_escores_rhos_wind_nonpca = _safe_read_csv(data_tuning_dir / 'escores_avg_on_tuning_wind_rhos.csv')
+
+df_escores_rhos_solar_pca_t7k = _safe_read_csv(data_t7k_pca_dir / 'escores_avg_on_tuning_solar_rhos.csv')
+
+df_escores_rhos_solar_nonpca_t7k = _safe_read_csv(data_t7k_dir / 'escores_avg_on_tuning_solar_rhos.csv')
+df_escores_rhos_load_nonpca_t7k = _safe_read_csv(data_t7k_dir / 'escores_avg_on_tuning_load_rhos.csv')
+df_escores_rhos_wind_nonpca_t7k = _safe_read_csv(data_t7k_dir / 'escores_avg_on_tuning_wind_rhos.csv')
+
 
 # Find the list of asset ids
-# RTS
-solar_asset_ids = list(df_escores_rhos_solar_nonpca['solar'].unique())
-solar_asset_ids.append('AVG')
+def _unique_plus_avg(df: pd.DataFrame, col: str) -> List[str]:
+    if df.empty or col not in df.columns:
+        return ['AVG']
+    vals = list(pd.Series(df[col]).dropna().astype(str).unique())
+    return vals + ['AVG']
 
-load_asset_ids = list(df_escores_rhos_load_nonpca['load'].unique())
-load_asset_ids.append('AVG')
 
-wind_asset_ids = list(df_escores_rhos_wind_nonpca['wind'].unique())
-wind_asset_ids.append('AVG')
+solar_asset_ids = _unique_plus_avg(df_escores_rhos_solar_nonpca, 'solar')
+load_asset_ids = _unique_plus_avg(df_escores_rhos_load_nonpca, 'load')
+wind_asset_ids = _unique_plus_avg(df_escores_rhos_wind_nonpca, 'wind')
 
-# Texas7k
-solar_asset_ids_t7k = list(
-    df_escores_rhos_solar_nonpca_t7k['solar'].unique())
-solar_asset_ids_t7k.append('AVG')
+solar_asset_ids_t7k = _unique_plus_avg(df_escores_rhos_solar_nonpca_t7k, 'solar')
+load_asset_ids_t7k = _unique_plus_avg(df_escores_rhos_load_nonpca_t7k, 'load')
+wind_asset_ids_t7k = _unique_plus_avg(df_escores_rhos_wind_nonpca_t7k, 'wind')
 
-load_asset_ids_t7k = list(
-    df_escores_rhos_load_nonpca_t7k['load'].unique())
-load_asset_ids_t7k.append('AVG')
 
-wind_asset_ids_t7k = list(df_escores_rhos_wind_nonpca_t7k['wind'].unique())
-wind_asset_ids_t7k.append('AVG')
-
-# Create date values for Texas7k
-date_values_rts = pd.date_range(start='2020-01-01', end='2020-12-29')
-date_values_rts = [str(i)[:10] for i in date_values_rts]
-
-date_values_t7k = pd.date_range(start='2018-01-02', end='2018-12-31')
-date_values_t7k = [str(i)[:10] for i in date_values_t7k]
+# Create date values for RTS/T7K
+date_values_rts = [str(i)[:10] for i in pd.date_range(start='2020-01-01', end='2020-12-29')]
+date_values_t7k = [str(i)[:10] for i in pd.date_range(start='2018-01-02', end='2018-12-31')]
 
 energy_types = ['load', 'wind', 'solar']
 energy_types_asset_ids = {
     'load': load_asset_ids,
     'wind': wind_asset_ids,
-    'solar': solar_asset_ids
+    'solar': solar_asset_ids,
 }
-
 energy_types_asset_ids_wind_solar = {
     'wind': wind_asset_ids,
-    'solar': solar_asset_ids
+    'solar': solar_asset_ids,
 }
-
 energy_types_asset_ids_t7k = {
     'load': load_asset_ids_t7k,
     'wind': wind_asset_ids_t7k,
-    'solar': solar_asset_ids_t7k
+    'solar': solar_asset_ids_t7k,
 }
-
 energy_types_asset_ids_t7k_csv = {
     'load': [i.replace(' ', '_') for i in load_asset_ids_t7k],
     'wind': [i.replace(' ', '_') for i in wind_asset_ids_t7k],
-    'solar': [i.replace(' ', '_') for i in solar_asset_ids_t7k]
+    'solar': [i.replace(' ', '_') for i in solar_asset_ids_t7k],
 }
-
 energy_types_asset_ids_wind_solar_t7k = {
     'wind': wind_asset_ids_t7k,
-    'solar': solar_asset_ids_t7k
+    'solar': solar_asset_ids_t7k,
 }
-
 energy_types_asset_ids_rts_csv = {
     'load': load_asset_ids[:-1],
     'wind': wind_asset_ids[:-1],
-    'solar': solar_asset_ids[:-1]
+    'solar': solar_asset_ids[:-1],
 }
 
-# Select the Day DF
 
 def _stub_hourly_df(start: str, end: str, cols: List[str]) -> pd.DataFrame:
-    """Create a stub hourly dataframe with an 'index' column and provided cols filled with 0."""
     rng = pd.date_range(start=start, end=end, freq='H')
-    # Use formatted timestamps so x[:13] yields 'YYYY-MM-DD HH'
-    df = pd.DataFrame({'index': rng.strftime('%Y-%m-%d %H:%M:%S')})
-    for c in cols:
-        df[c] = 0.0
+    df = pd.DataFrame(index=rng, data={c: 0.0 for c in cols})
+    df = df.reset_index().rename(columns={'index': 'time'})
     return df
+
 
 def _safe_read_dropbox_csv(dbx_path: str, fallback_local: Optional[str], stub_cols: List[str],
                            start: str, end: str) -> pd.DataFrame:
-    """Try Dropbox, else local CSV (relative to currentpath), else stub hourly df."""
-    # Try Dropbox
-    if HAS_DROPBOX and dbx is not None:
-        try:
-            _, res = dbx.files_download(dbx_path)
-            with io.BytesIO(res.content) as stream:
-                return pd.read_csv(stream, index_col=0).reset_index()
-        except Exception:
-            pass
-    # Try local
-    if fallback_local is not None:
-        local_path = os.path.join(ROOT_DIR, fallback_local)
-        if os.path.exists(local_path):
-            try:
-                return pd.read_csv(local_path, index_col=0).reset_index()
-            except Exception:
-                pass
-    # Fallback: stub
-    return _stub_hourly_df(start=start, end=end, cols=stub_cols)
+    # Placeholder: current project primarily uses local files. Implement if Dropbox CSVs are needed.
+    if fallback_local:
+        return _safe_read_local_csv(fallback_local, stub_cols, start, end)
+    return _stub_hourly_df(start, end, stub_cols)
+
 
 def _safe_read_local_csv(local_rel_path: str, stub_cols: List[str], start: str, end: str) -> pd.DataFrame:
-    """Read a local CSV relative to ROOT_DIR, else return a stub hourly DataFrame."""
-    local_path = os.path.join(ROOT_DIR, local_rel_path)
-    if os.path.exists(local_path):
-        try:
-            return pd.read_csv(local_path, index_col=0).reset_index()
-        except Exception:
-            pass
-    return _stub_hourly_df(start=start, end=end, cols=stub_cols)
+    path = SETTINGS.root_dir / local_rel_path
+    try:
+        df = pd.read_csv(path)
+
+        # If the file is empty or has no columns, synthesize a stub
+        if df is None or df.empty or len(df.columns) == 0:
+            return _stub_hourly_df(start, end, stub_cols)
+
+        # Normalize possible time column names
+        time_col = None
+        for name in ['time', 'Time', 'timestamp', 'Timestamp', 'date', 'Date', 'Datetime', 'datetime', 'Unnamed: 0', 'index']:
+            if name in df.columns:
+                time_col = name
+                break
+
+        if time_col is not None:
+            if time_col != 'time':
+                df = df.rename(columns={time_col: 'time'})
+            s = pd.to_datetime(df['time'], errors='coerce', utc=True)
+            try:
+                s = s.dt.tz_convert(None)
+            except Exception:
+                s = s.tz_localize(None) if hasattr(s.dt, 'tz_localize') else s
+            df['time'] = s
+            start_dt = pd.to_datetime(start)
+            end_dt = pd.to_datetime(end)
+            return df[(df['time'] >= start_dt) & (df['time'] <= end_dt)]
+
+        # If we couldn't find a time column, return a stub with provided columns
+        return _stub_hourly_df(start, end, stub_cols)
+    except Exception:
+        return _stub_hourly_df(start, end, stub_cols)
+
 
 # Risk Allocation (local only)
-folder_path_local = os.path.join('data', 'reliability_cost_index_data')
+folder_path_local = 'data/reliability_cost_index_data'
 
 # Type-level RTS (expects columns like WIND, PV, RTPV)
 type_allocs_rts = _safe_read_local_csv(

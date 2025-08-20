@@ -1,5 +1,4 @@
-import dash
-from dash import html, dcc
+from utils.ui import dash, html, dcc
 
 dash.register_page(__name__, path='/', name='Home', order=0)
 

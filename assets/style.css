@@ -90,9 +90,11 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
   margin-bottom: 1rem;
 }
 
-/* Ensure tab content has padding */
+/* Ensure tab content has padding and separation from tabs */
 .tab-content, .dash-tab-content {
   padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  clear: both;
 }
 
 /* App layout content container */
@@ -150,7 +152,18 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
 .graph-pad { padding-left: 10px; }
 
 /* Tabs styling via classes instead of inline style */
-.tabs { height: 44px; }
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+}
+.tab-container, .dash-tabs, .nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .tab {
   border-bottom: 1px solid #e6e6e6;
   padding: 8px 12px;
@@ -163,6 +176,12 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
   color: #E87722;
   padding: 8px 12px;
   font-weight: 600;
+}
+
+/* Mobile tweaks to reduce crowding and avoid overlap */
+@media (max-width: 576px) {
+  .tab { padding: 6px 10px; font-size: 14px; }
+  .tab-content, .dash-tab-content { margin-top: 0.75rem; }
 }
 
 /* Index card/title helpers for Risk Allocation */

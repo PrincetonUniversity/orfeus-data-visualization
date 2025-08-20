@@ -1,6 +1,7 @@
 import pandas as pd
+from typing import List
 from datetime import date, timedelta, datetime
-from dash import html, dcc, Input, Output, ctx
+from utils.ui import html, dcc, Input, Output, ctx, dash
 import plotly.express as px
 
 import dash
@@ -30,14 +31,30 @@ start_date = datetime.strptime('2018-' + yesterdate, "%Y-%m-%d")
 end_date = start_date + timedelta(hours=23)
 daterange_t7k = pd.date_range(start_date, end_date, freq='H')
 
-type_allocs_rts_day = type_allocs_rts[
-    type_allocs_rts['time'].isin(daterange_rts)].set_index(['time']).mean()
-asset_allocs_rts_day = asset_allocs_rts[
-    asset_allocs_rts['time'].isin(daterange_rts)].set_index(['time']).mean()
-type_allocs_t7k_day = type_allocs_t7k[
-    type_allocs_t7k['time'].isin(daterange_t7k)].set_index(['time']).mean()
-asset_allocs_t7k_day = asset_allocs_t7k[
-    asset_allocs_t7k['time'].isin(daterange_t7k)].set_index(['time']).mean()
+
+def _safe_daily_mean(df: pd.DataFrame, daterange: pd.DatetimeIndex, expected_cols: List[str]) -> pd.Series:
+    """Compute mean over daterange safely, returning zeros for missing cols."""
+    try:
+        if 'time' in df.columns:
+            mask = df['time'].isin(daterange)
+            filtered = df.loc[mask]
+            if not filtered.empty:
+                s = filtered.set_index('time').mean(numeric_only=True)
+                # Ensure ordering/coverage of expected columns
+                return s.reindex(expected_cols).fillna(0.0)
+    except Exception:
+        pass
+    return pd.Series({c: 0.0 for c in expected_cols})
+
+
+# Precompute daily means with defensive fallbacks
+type_allocs_rts_day = _safe_daily_mean(type_allocs_rts, daterange_rts, ['WIND', 'PV', 'RTPV'])
+asset_cols_rts = [c for c in asset_allocs_rts.columns if c != 'time']
+asset_allocs_rts_day = _safe_daily_mean(asset_allocs_rts, daterange_rts, asset_cols_rts)
+
+type_allocs_t7k_day = _safe_daily_mean(type_allocs_t7k, daterange_t7k, ['WIND', 'PV'])
+asset_cols_t7k = [c for c in asset_allocs_t7k.columns if c != 'time']
+asset_allocs_t7k_day = _safe_daily_mean(asset_allocs_t7k, daterange_t7k, asset_cols_t7k)
 
 html_div_risk_allocation_overview =  html.Div(children=[
 
@@ -282,6 +299,11 @@ layout = html_div_risk_allocation
 
 def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                                     level='asset_type', asset_id=None):
+    # Empty-state helper
+    def _empty_fig(title: str = 'No data available'):
+        fig = px.line(pd.DataFrame({'time': [], 'value': []}), x='time', y='value')
+        fig.update_layout(title=title, xaxis_title='Date', yaxis_title='Reliability Cost Index ($)')
+        return fig
     if version == 'RTS':
         startyear_ = '2020-'
         if level == 'asset_type':
@@ -295,7 +317,22 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
         else:
             y_ = asset_id
 
+    # Validate y selection
+    if level != 'asset_type':
+        if not y_:
+            return _empty_fig('Select an asset to view the time series')
+        # Coerce to list for existence checks
+        y_cols = [y_]
+    else:
+        y_cols = y_
+
+    missing = [c for c in y_cols if c not in type_allocs.columns]
+    if missing:
+        return _empty_fig(f"Missing columns: {', '.join(missing)}")
+
     if period == 'hist':
+        if 'time' not in type_allocs.columns or type_allocs.empty:
+            return _empty_fig()
         fig_type_allocs = px.line(type_allocs, x='time', y=y_,
                                   hover_data={"time": "|%H, %b %d"})
         fig_type_allocs.update_xaxes(tickformat='%H \n %b %d, %Y',
@@ -304,34 +341,43 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
     else:
         end_date = datetime.strptime(startyear_ + todaydate, "%Y-%m-%d")
         if period == '1day':
+            if 'time' not in type_allocs.columns or type_allocs.empty:
+                return _empty_fig()
             if version == 'RTS':
                 delta = timedelta(days=1)
                 daterange = pd.date_range(end_date - delta, end_date, freq='H')
                 type_allocs_day = type_allocs[type_allocs['time'].isin(daterange)]
             else:
                 type_allocs_day = type_allocs.iloc[-24:, ]
+            if type_allocs_day.empty:
+                return _empty_fig()
             fig_type_allocs = px.line(type_allocs_day, x='time', y=y_,
                                       hover_data={"time": "|%H, %b %d"})
             fig_type_allocs.update_xaxes(tickformat='%H \n %b %d',
                                          title_font_size=25)
 
         elif period == '1week':
+            if 'time' not in type_allocs.columns or type_allocs.empty:
+                return _empty_fig()
             if version == 'RTS':
                 delta = timedelta(weeks=1)
                 daterange = pd.date_range(end_date - delta, end_date, freq='H')
                 type_allocs_day = type_allocs[type_allocs['time'].isin(daterange)]
             else:
                 type_allocs_day = type_allocs.iloc[-24*7:, ]
+            if type_allocs_day.empty:
+                return _empty_fig()
             fig_type_allocs = px.line(type_allocs_day, x='time', y=y_,
                                       hover_data={"time": "|%H, %b %d"})
             fig_type_allocs.update_xaxes(tickformat='%H \n %b %d',
                                          title_font_size=25)
 
-    fig_type_allocs.data[0].name = 'Wind'
-
-    if level == 'asset_type':
+    # Label traces defensively
+    if len(fig_type_allocs.data) >= 1:
+        fig_type_allocs.data[0].name = 'Wind'
+    if level == 'asset_type' and len(fig_type_allocs.data) >= 2:
         fig_type_allocs.data[1].name = 'Solar'
-        if version == 'RTS':
+        if version == 'RTS' and len(fig_type_allocs.data) >= 3:
             fig_type_allocs.data[2].name = 'Rooftop Solar'
 
     fig_type_allocs.update_layout(
@@ -384,6 +430,8 @@ def plot_mean_asset_type_risk_alloc_daterange_rts(btn1, btn2, btn3):
     Input('rts-asset-allocs-hist', 'n_clicks')
 )
 def asset_ids_risk_alloc_rts(asset_id, button1, button2, button3):
+    if asset_id is None:
+        return plot_mean_asset_type_risk_alloc(asset_allocs_rts, version='RTS', period='1day', level='asset_id', asset_id=None)
     if "rts-asset-allocs-1day" == ctx.triggered_id:
         fig_asset_allocs = plot_mean_asset_type_risk_alloc(asset_allocs_rts,
                                                            version='RTS',
@@ -455,6 +503,8 @@ def plot_mean_asset_type_risk_alloc_daterange_t7k(btn1, btn2, btn3):
     Input('t7k-asset-allocs-hist', 'n_clicks')
 )
 def asset_ids_risk_alloc_t7k(asset_id, button1, button2, button3):
+    if asset_id is None:
+        return plot_mean_asset_type_risk_alloc(asset_allocs_t7k, version='T7K', period='1day', level='asset_id', asset_id=None)
     if "t7k-asset-allocs-1day" == ctx.triggered_id:
         fig_asset_allocs = plot_mean_asset_type_risk_alloc(asset_allocs_t7k,
                                                            version='T7K',

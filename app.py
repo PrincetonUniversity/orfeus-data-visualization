@@ -1,32 +1,12 @@
+from pathlib import Path
 import os
-import dash
-from dash import dcc, html, Input, Output, State, page_registry, page_container
-import dash_bootstrap_components as dbc
-try:
-    import dropbox  # type: ignore
-except Exception:  # dropbox lib may be missing in some envs
-    dropbox = None
 
-# Optional Dropbox config via environment variables; fall back to no Dropbox
-# Define these BEFORE creating the Dash app so pages can import them during init
-# Set env vars: DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN
-APP_KEY = os.getenv("DROPBOX_APP_KEY")
-APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
-REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
+from utils.ui import dash, dcc, html, Input, Output, State, page_registry, page_container, dbc
+from utils.config import SETTINGS
+from utils.dropbox_client import get_dropbox
 
-dbx = None
-HAS_DROPBOX = False
-
-if dropbox is not None and APP_KEY and APP_SECRET and REFRESH_TOKEN:
-    try:
-        dbx = dropbox.Dropbox(app_key=APP_KEY,
-                              app_secret=APP_SECRET,
-                              oauth2_refresh_token=REFRESH_TOKEN)
-        # light touch: verify credentials lazily at first call; don't ping here
-        HAS_DROPBOX = True
-    except Exception:
-        dbx = None
-        HAS_DROPBOX = False
+# Dropbox client (lazy-verified). Expose on the module for other modules if needed.
+dbx, HAS_DROPBOX = get_dropbox()
 
 app = dash.Dash(__name__, use_pages=True,
                 external_stylesheets=[dbc.themes.CERULEAN],
@@ -80,6 +60,5 @@ def _toggle_navbar_collapse(n, is_open):
 
 if __name__ == "__main__":
     # Local development entrypoint
-    port = int(os.getenv("PORT", "8055"))
-    app.run_server(debug=True, port=port)
+    app.run_server(debug=True, port=SETTINGS.port)
 
