@@ -46,13 +46,24 @@ def load_settings() -> Settings:
     pgscen_dir = Path(os.getenv("ORFEUS_PGSCEN_DIR", str(root_dir / "data" / "PGscen_Scenarios")))
 
     # Auto-enable stub mode if critical data is missing in the mounted /app/data directory
+    def _resolve_case_insensitive(p: Path) -> bool:
+        if p.exists():
+            return True
+        parent = p.parent
+        try:
+            target = p.name.lower()
+            for name in os.listdir(parent):
+                if name.lower() == target:
+                    return True
+        except Exception:
+            pass
+        return False
+
     if not stub_mode:
         data_dir = root_dir / "data"
-        critical = [
-            data_dir / "Vatic_Grids" / "Texas-7k" / "TX_Data" / "SourceData" / "bus.csv",
-        ]
+        critical = data_dir / "Vatic_Grids" / "Texas-7k" / "TX_Data" / "SourceData" / "bus.csv"
         try:
-            if any(not p.exists() for p in critical):
+            if not _resolve_case_insensitive(critical):
                 stub_mode = True
         except Exception:
             # If any error occurs checking files, stay in non-stub unless explicitly set

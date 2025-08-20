@@ -1,5 +1,5 @@
-# Multi-arch slim Python base
-FROM python:3.8-slim
+# Multi-arch slim Python base (Python 3.13)
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -16,7 +16,7 @@ WORKDIR /app
 
 # Install Python dependencies first (leverage layer caching)
 COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN python -m pip install --upgrade pip && pip install --upgrade --no-cache-dir -r requirements.txt
 
 # Copy only necessary application files (avoid bringing data/ into the image)
 COPY app.py wsgi.py ./

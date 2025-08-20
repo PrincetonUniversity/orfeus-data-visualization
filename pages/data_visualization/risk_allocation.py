@@ -25,11 +25,11 @@ asset_ids_risk_alloc_t7k = asset_allocs_t7k.columns[1:]
 # Calculate daily index by taking the avg of hourly index
 start_date = datetime.strptime('2020-' + yesterdate, "%Y-%m-%d")
 end_date = start_date + timedelta(hours=23)
-daterange_rts = pd.date_range(start_date, end_date, freq='H')
+daterange_rts = pd.date_range(start_date, end_date, freq='h')
 
 start_date = datetime.strptime('2018-' + yesterdate, "%Y-%m-%d")
 end_date = start_date + timedelta(hours=23)
-daterange_t7k = pd.date_range(start_date, end_date, freq='H')
+daterange_t7k = pd.date_range(start_date, end_date, freq='h')
 
 
 def _safe_daily_mean(df: pd.DataFrame, daterange: pd.DatetimeIndex, expected_cols: List[str]) -> pd.Series:
@@ -345,7 +345,7 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                 return _empty_fig()
             if version == 'RTS':
                 delta = timedelta(days=1)
-                daterange = pd.date_range(end_date - delta, end_date, freq='H')
+                daterange = pd.date_range(end_date - delta, end_date, freq='h')
                 type_allocs_day = type_allocs[type_allocs['time'].isin(daterange)]
             else:
                 type_allocs_day = type_allocs.iloc[-24:, ]
@@ -361,7 +361,7 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                 return _empty_fig()
             if version == 'RTS':
                 delta = timedelta(weeks=1)
-                daterange = pd.date_range(end_date - delta, end_date, freq='H')
+                daterange = pd.date_range(end_date - delta, end_date, freq='h')
                 type_allocs_day = type_allocs[type_allocs['time'].isin(daterange)]
             else:
                 type_allocs_day = type_allocs.iloc[-24*7:, ]

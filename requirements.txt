@@ -1,22 +1,22 @@
-# Runtime dependencies for the ORFEUS Dash app
-# Versions aligned with environment.yml where feasible
+# Runtime dependencies for the ORFEUS Dash app (Python 3.10+ / 3.13-ready)
+# Keep pins modern and compatible with Python 3.13.
 
 # Web stack
-dash==2.18.2
-dash-bootstrap-components==1.6.0
-flask==2.2.2
-flask-compress==1.13
-plotly==5.11.0
-werkzeug==2.2.2
+dash~=2.18
+dash-bootstrap-components==1.7.1
+flask>=3.0,<3.1
+flask-compress>=1.14,<1.16
+plotly>=5.22,<6
+werkzeug>=3.0,<3.1
 
 # Data
-pandas==1.4.4
-numpy==1.23.3
+pandas>=2.2.3,<3
+numpy>=2.0,<3
 
 # Optional integrations
-dropbox==12.0.2
-tenacity==8.1.0
-dill==0.3.4
+dropbox>=12,<14
+tenacity>=8.3,<9
+dill>=0.3.8,<0.4
 
 # Production server
-gunicorn==21.2.0
+gunicorn>=21.2,<23
