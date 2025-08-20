@@ -31,7 +31,7 @@ def _nav_links():
 banner = None
 if getattr(SETTINGS, "stub_mode", False):
     banner = dbc.Alert(
-        "Stub Mode: Data shown may be placeholders for CI/testing.",
+        "Stub Mode: Data shown may be placeholders for CI/testing and/or missing data directory.",
         color="warning",
         className="m-0 py-1 px-2 w-100 text-center",
         style={"borderRadius": 0}
