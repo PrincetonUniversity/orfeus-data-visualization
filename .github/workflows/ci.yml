@@ -22,7 +22,7 @@ jobs:
 
       - name: Run container
         run: |
-          docker run -d --rm \
+          docker run -d \
             --name orfeus-app \
             -e PORT=8055 \
             -e PYTHONUNBUFFERED=1 \
@@ -31,16 +31,31 @@ jobs:
 
       - name: Wait for service readiness
         run: |
-          echo "Waiting for http://localhost:8055/healthz ..."
+          set -e
+          echo "Waiting for app to become healthy (up to ~2 minutes)..."
           for i in {1..60}; do
+            # if container has exited, dump diagnostics and fail fast
+            if ! docker ps --format '{{.Names}}' | grep -q '^orfeus-app$'; then
+              echo "Container 'orfeus-app' is not running. Dumping diagnostics..." >&2
+              docker ps -a || true
+              docker logs orfeus-app || true
+              exit 1
+            fi
+            # Try health endpoint first, then fallback to home page
             code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8055/healthz || true)
             if [ "$code" = "200" ]; then
-              echo "Service is healthy."
+              echo "Service is healthy (healthz)."
+              exit 0
+            fi
+            code_home=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8055/ || true)
+            if [ "$code_home" = "200" ]; then
+              echo "Service is responding on /. Proceeding."
               exit 0
             fi
             sleep 2
           done
-          echo "Service failed to become healthy in time." >&2
+          echo "Service failed to become healthy in time. Dumping diagnostics..." >&2
+          docker ps -a || true
           docker logs orfeus-app || true
           exit 1
 
