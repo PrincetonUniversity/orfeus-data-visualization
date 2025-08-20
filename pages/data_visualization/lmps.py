@@ -178,7 +178,7 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                                        hover_data=['Bus ID', 'LMP',
                                                    'Demand',
                                                    'GEN UID'],
-                                       size_max=15, zoom=1)
+                                       size_max=3, zoom=1)
 
     if bus_detail_hr_highcongest.shape[0] != 0:
         fig_highcongest = px.scatter_mapbox(bus_detail_hr_highcongest, lat="lat",
@@ -187,7 +187,7 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                                 hover_name='Bus Name',
                                 hover_data=['Bus ID', 'LMP', 'Demand',
                                             'GEN UID'],
-                                size_max=15, zoom=1)
+                                size_max=3, zoom=1)
         fig.add_trace(fig_highcongest.data[0])
 
     if bus_detail_mismatch.shape[0] != 0:
@@ -203,7 +203,7 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                          hover_data=['Bus ID', 'LMP',
                                  'Mismatch', 'Demand',
                                  'GEN UID'],
-                         size_max=15, zoom=1)
+                         size_max=3, zoom=1)
         if len(fig_mismatch.data) > 0:
             fig.add_trace(fig_mismatch.data[0])
 
