@@ -25,6 +25,7 @@ jobs:
           docker run -d \
             --name orfeus-app \
             -e PORT=8055 \
+            -e STUB_MODE=1 \
             -e PYTHONUNBUFFERED=1 \
             -p 8055:8055 \
             orfeus-app-ci:${{ github.sha }}

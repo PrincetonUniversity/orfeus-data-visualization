@@ -3,13 +3,23 @@
 This repository contains a Dash application for visualizing scenarios, risk allocation, and LMPs.
 
 ## Running locally (Python)
-- Create a virtual environment and install requirements:
 ```
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
+Always mount your local `data/` directory; enable stub mode to run without full datasets.
+
+1. Build the image
+2. Run the container with a volume mount and stub mode (safe without data present):
+
+```sh
+docker build -t orfeus-app .
+docker run --name orfeus-app --rm -p 8055:8055 -e PORT=8055 -e STUB_MODE=1 -v "$PWD/data:/app/data" orfeus-app
+```
+
+If you have full data available, you can drop STUB_MODE=1 to use real datasets.
 
 ## Running locally (Conda)
 - Create and activate the environment from `environment.yml`:

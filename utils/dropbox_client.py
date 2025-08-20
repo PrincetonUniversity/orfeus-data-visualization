@@ -15,6 +15,10 @@ def get_dropbox() -> Tuple[Optional[Any], bool]:
 
     Returns (dbx, has_dropbox)
     """
+    # In stub mode, never use Dropbox
+    if getattr(SETTINGS, "stub_mode", False):
+        return None, False
+
     if dropbox is None:
         return None, False
 

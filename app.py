@@ -28,21 +28,32 @@ def _nav_links():
     return [dbc.NavItem(dbc.NavLink(p.get('name', p['path'].strip('/').title()) or 'Home', href=p['path'], active="exact")) for p in pages]
 
 
+banner = None
+if getattr(SETTINGS, "stub_mode", False):
+    banner = dbc.Alert(
+        "Stub Mode: Data shown may be placeholders for CI/testing.",
+        color="warning",
+        className="m-0 py-1 px-2 w-100 text-center",
+        style={"borderRadius": 0}
+    )
+
+navbar_children = [
+    dbc.NavbarBrand("ORFEUS Data Visualization", href="/"),
+    dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
+    dbc.Collapse(dbc.Nav(_nav_links(), className="ms-auto", navbar=True),
+                 id="navbar-collapse", is_open=False, navbar=True),
+]
 navbar = dbc.Navbar(
-    dbc.Container([
-        dbc.NavbarBrand("ORFEUS Data Visualization", href="/"),
-        dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
-        dbc.Collapse(dbc.Nav(_nav_links(), className="ms-auto", navbar=True),
-                     id="navbar-collapse", is_open=False, navbar=True),
-    ], fluid=True),
+    dbc.Container(navbar_children, fluid=True),
     dark=False,
-    className="dbc-navbar"
+    className="dbc-navbar",
 )
 
 
 app.layout = html.Div([
     dcc.Store(id='side_click'),
     navbar,
+    banner if banner else html.Div(),
     html.Div(page_container, className='app-content')
 ])
 

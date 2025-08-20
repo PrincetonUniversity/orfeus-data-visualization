@@ -16,6 +16,7 @@ class Settings:
     mapbox_style: str | None
     # App
     port: int
+    stub_mode: bool
     # Paths
     root_dir: Path
     pgscen_dir: Path
@@ -40,8 +41,22 @@ def load_settings() -> Settings:
     mapbox_style = os.getenv("MAPBOX_STYLE")
 
     port = _env_int("PORT", 8055)
+    stub_mode = os.getenv("STUB_MODE", "0").strip() in ("1", "true", "True", "yes", "on")
 
     pgscen_dir = Path(os.getenv("ORFEUS_PGSCEN_DIR", str(root_dir / "data" / "PGscen_Scenarios")))
+
+    # Auto-enable stub mode if critical data is missing in the mounted /app/data directory
+    if not stub_mode:
+        data_dir = root_dir / "data"
+        critical = [
+            data_dir / "Vatic_Grids" / "Texas-7k" / "TX_Data" / "SourceData" / "bus.csv",
+        ]
+        try:
+            if any(not p.exists() for p in critical):
+                stub_mode = True
+        except Exception:
+            # If any error occurs checking files, stay in non-stub unless explicitly set
+            pass
 
     return Settings(
         app_key=app_key,
@@ -50,6 +65,7 @@ def load_settings() -> Settings:
         mapbox_token=mapbox_token,
         mapbox_style=mapbox_style,
         port=port,
+    stub_mode=stub_mode,
         root_dir=root_dir,
         pgscen_dir=pgscen_dir,
     )

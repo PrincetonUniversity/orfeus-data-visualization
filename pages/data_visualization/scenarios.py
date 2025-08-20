@@ -407,7 +407,15 @@ def set_asset_ids_options(energy_type):
     Output('asset_ids_t7k', 'value'),
     Input('asset_ids_t7k', 'options'))
 def set_asset_ids_value(energy_types_asset_ids_t7k_csv):
-    return energy_types_asset_ids_t7k_csv[2]['value']
+    try:
+        # prefer a middle option if available, else first, else None
+        if len(energy_types_asset_ids_t7k_csv) > 2:
+            return energy_types_asset_ids_t7k_csv[2]['value']
+        if len(energy_types_asset_ids_t7k_csv) > 0:
+            return energy_types_asset_ids_t7k_csv[0]['value']
+    except Exception:
+        pass
+    return None
 
 
 @dash.callback(
@@ -422,7 +430,12 @@ def set_asset_ids_options(energy_type):
     Output('asset_ids_rts', 'value'),
     Input('asset_ids_rts', 'options'))
 def set_asset_ids_value(energy_types_asset_ids_rts_csv):
-    return energy_types_asset_ids_rts_csv[0]['value']
+    try:
+        if len(energy_types_asset_ids_rts_csv) > 0:
+            return energy_types_asset_ids_rts_csv[0]['value']
+    except Exception:
+        pass
+    return None
 
 @dash.callback(
     Output('t7k_scenario_plot_notuning', 'figure'),
