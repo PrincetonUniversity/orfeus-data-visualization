@@ -152,19 +152,24 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
 .graph-pad { padding-left: 10px; }
 
 /* Tabs styling via classes instead of inline style */
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
+/* Default (wide screens): horizontal row, no wrapping; allow horizontal scroll if overflow */
+.tabs,
+.tab-container,
+.dash-tabs,
+.nav-tabs {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
   min-height: 44px;
-}
-.tab-container, .dash-tabs, .nav-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  overflow-x: auto;
 }
 .tab {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto; /* prevent expanding to 100% width */
+  white-space: nowrap; /* keep label on one line */
   border-bottom: 1px solid #e6e6e6;
   padding: 8px 12px;
   color: #2e2e2e;
@@ -176,6 +181,17 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
   color: #E87722;
   padding: 8px 12px;
   font-weight: 600;
+}
+
+/* Responsive: enable wrapping on smaller screens and adjust spacing */
+@media (max-width: 768px) {
+  .tabs,
+  .tab-container,
+  .dash-tabs,
+  .nav-tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
 }
 
 /* Mobile tweaks to reduce crowding and avoid overlap */

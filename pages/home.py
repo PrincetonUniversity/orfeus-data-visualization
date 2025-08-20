@@ -1,19 +1,13 @@
 from utils.ui import dash, html, dcc
+from utils.md import load_markdown
 
 dash.register_page(__name__, path='/', name='Home', order=0)
+
+markdown_text_home = load_markdown('markdown', 'home.md')
 
 layout = html.Div([
     html.H1('Data Visualizations', className='title'),
     html.Div([
-        dcc.Markdown(
-            'Explore scenarios, risk allocation, and geographic LMPs using the pages in the navigation bar.',
-            className='markdown'
-        ),
-        html.Hr(),
-        html.Ul([
-            html.Li(html.A('Scenarios Visualization', href='/scenariovisualize')),
-            html.Li(html.A('Risk Allocation Plot', href='/riskallocplot')),
-            html.Li(html.A('LMP Geographical Visualization', href='/lmpplot')),
-        ]),
+    dcc.Markdown(markdown_text_home, className='markdown'),
     ], className='section')
 ], className='app-content')
