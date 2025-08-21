@@ -5,24 +5,86 @@ import sys
 import bz2
 import gzip
 from pathlib import Path
+import types
 
 import pandas as pd
-import dill as pickle  # dill handles objects pickled with dill
+import pickle as std_pickle
+import dill as dill_pickle  # fallback if files were pickled with dill
 
 REQUIRED_BUS_COLS = {"Bus", "Hour", "LMP", "Demand", "Date", "Mismatch"}
 REQUIRED_LINE_COLS = {"Line", "Hour", "Flow"}
 
 
+def _prepare_pandas_compat():
+    """Shim legacy pandas module/class paths used in old pickles.
+
+    - pandas.core.indexes.numeric existed in older pandas; now merged into base.
+    - Int64Index/UInt64Index/Float64Index classes were removed; map to pd.Index.
+    """
+    try:
+        import pandas.core.indexes.base as base
+        # Create a synthetic module for pandas.core.indexes.numeric
+        m = types.ModuleType("pandas.core.indexes.numeric")
+        m.__dict__.update(base.__dict__)
+        sys.modules["pandas.core.indexes.numeric"] = m
+        # Map legacy index class names used in pickles
+        for legacy in ("Int64Index", "UInt64Index", "Float64Index"):
+            setattr(base, legacy, pd.Index)
+            setattr(m, legacy, pd.Index)
+    except Exception:
+        # Best-effort shim; if it fails, continue and let load attempt anyway
+        pass
+
+
+def _try_load(fileobj):
+    """Attempt std pickle first, then dill, with compat shim applied."""
+    _prepare_pandas_compat()
+    try:
+        return std_pickle.load(fileobj)
+    except Exception:
+        fileobj.seek(0)
+        _prepare_pandas_compat()
+        return dill_pickle.load(fileobj)
+
+
 def _load_pickle_any(path: Path):
+    # Ensure pandas compat shims are in place prior to unpickling
+    _prepare_pandas_compat()
+    # Try bz2
     try:
         with bz2.BZ2File(path, "rb") as f:
-            return pickle.load(f)
+            return _try_load(f)
     except Exception:
+        # Try gzip
         try:
             with gzip.open(path, "rb") as f:
-                return pickle.load(f)
+                return _try_load(f)
         except Exception as e_gz:
             raise RuntimeError(f"Failed to load {path} via bz2 and gzip") from e_gz
+
+
+def _extract_bus_line(obj: dict):
+    """Return (bus_detail_df, line_detail_df) from a pickle dict with varying keys.
+
+    Accepts variants: 'bus_detail'|'bus'|'bus_df'|'buses' and
+    'line_detail'|'line'|'line_df'|'lines'. Avoids DataFrame truthiness.
+    """
+    bus_detail = None
+    line_detail = None
+
+    for k in ("bus_detail", "bus", "bus_df", "buses"):
+        v = obj.get(k)
+        if isinstance(v, pd.DataFrame):
+            bus_detail = v
+            break
+
+    for k in ("line_detail", "line", "line_df", "lines"):
+        v = obj.get(k)
+        if isinstance(v, pd.DataFrame):
+            line_detail = v
+            break
+
+    return bus_detail, line_detail
 
 
 def validate_lmp_pickle(path: Path, bus_csv: Path = None, branch_csv: Path = None) -> bool:
@@ -33,16 +95,15 @@ def validate_lmp_pickle(path: Path, bus_csv: Path = None, branch_csv: Path = Non
         print("ERROR: Pickle root object is not a dict", file=sys.stderr)
         return False
 
-    for key in ("bus_detail", "line_detail"):
-        if key not in obj:
-            print(f"ERROR: Missing key '{key}' in pickle", file=sys.stderr)
-            return False
-        if not isinstance(obj[key], pd.DataFrame):
-            print(f"ERROR: '{key}' is not a pandas DataFrame", file=sys.stderr)
-            return False
+    bus_detail, line_detail = _extract_bus_line(obj)
+    if not isinstance(bus_detail, pd.DataFrame) or not isinstance(line_detail, pd.DataFrame):
+        print("ERROR: Could not find DataFrames for bus_detail and line_detail in pickle", file=sys.stderr)
+        print(f"Keys found: {sorted(obj.keys())}")
+        return False
 
-    bus_detail = obj["bus_detail"].reset_index()
-    line_detail = obj["line_detail"].reset_index()
+    # Normalize indices to columns if needed
+    bus_detail = bus_detail.reset_index()
+    line_detail = line_detail.reset_index()
 
     # Required columns present
     missing_bus = REQUIRED_BUS_COLS - set(bus_detail.columns)

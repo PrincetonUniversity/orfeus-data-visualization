@@ -301,7 +301,7 @@ def build_timeseries(version, day, asset_type, asset_id):
         '{}-{}-{}-00-00'.format(day[2:4], day[4:6], day[6:8]),
         "%y-%m-%d-%H-%M")
     end_date = start_date + timedelta(hours=23)
-    date_values_7k = pd.date_range(start=start_date, end=end_date, freq='H')
+    date_values_7k = pd.date_range(start=start_date, end=end_date, freq='h')
 
     # find 5 percentile extreme scenarios
     df_5per = pd.DataFrame()

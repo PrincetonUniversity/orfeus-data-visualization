@@ -71,7 +71,7 @@ def process_date_column(df: pd.DataFrame, date_column: str = 'time') -> pd.DataF
 
     # Fallback: synthesize an hourly timeline (will likely be filtered out later)
     try:
-        df2.insert(0, 'time', pd.date_range('1970-01-01', periods=len(df2), freq='H'))
+        df2.insert(0, 'time', pd.date_range('1970-01-01', periods=len(df2), freq='h'))
     except Exception:
         df2.insert(0, 'time', pd.Series([pd.NaT] * len(df2)))
     return df2
@@ -156,7 +156,7 @@ energy_types_asset_ids_rts_csv = {
 
 
 def _stub_hourly_df(start: str, end: str, cols: List[str]) -> pd.DataFrame:
-    rng = pd.date_range(start=start, end=end, freq='H')
+    rng = pd.date_range(start=start, end=end, freq='h')
     df = pd.DataFrame(index=rng, data={c: 0.0 for c in cols})
     df = df.reset_index().rename(columns={'index': 'time'})
     return df
@@ -238,11 +238,32 @@ type_allocs_t7k = process_date_column(type_allocs_t7k)
 asset_allocs_t7k = process_date_column(asset_allocs_t7k)
 
 # read grid data (safe fallbacks when files are unavailable in CI)
-def _safe_read_grid_csv(path: str, columns: list[str]) -> pd.DataFrame:
+def _resolve_case_insensitive(p: str | Path) -> Path | None:
+    """Return an existing path matching p, trying case-insensitive match in the parent dir if needed."""
+    path = Path(p)
+    if path.exists():
+        return path
+    parent = path.parent
     try:
-        return pd.read_csv(path)
+        target = path.name.lower()
+        for name in os.listdir(parent):
+            if name.lower() == target:
+                candidate = parent / name
+                if candidate.exists():
+                    return candidate
     except Exception:
+        pass
+    return None
+
+
+def _safe_read_grid_csv(path: str, columns: list[str]) -> pd.DataFrame:
+    try_path = _resolve_case_insensitive(path)
+    if try_path is None:
         # return empty frame with the expected schema so downstream ops don't crash
+        return pd.DataFrame({c: pd.Series(dtype='object') for c in columns})
+    try:
+        return pd.read_csv(try_path)
+    except Exception:
         return pd.DataFrame({c: pd.Series(dtype='object') for c in columns})
 
 bus_cols = ['Bus ID', 'lat', 'lng', 'Zone', 'Sub Name', 'Bus Name', 'Area', 'GEN UID']

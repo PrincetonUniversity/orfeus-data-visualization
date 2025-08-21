@@ -1,10 +1,10 @@
 # ORFEUS Dash App
 
-This repository contains a Dash application for visualizing scenarios, risk allocation, and LMPs.
+This repository contains a Dash application for visualizing scenarios, risk allocation, and LMPs. Tested on Python 3.13.
 
-## Running locally (Python)
+## Running locally (Python 3.13)
 ```
-python3 -m venv .venv
+python3.13 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 python app.py
@@ -21,7 +21,7 @@ docker run --name orfeus-app --rm -p 8055:8055 -e PORT=8055 -e STUB_MODE=1 -v "$
 
 If you have full data available, you can drop STUB_MODE=1 to use real datasets.
 
-## Running locally (Conda)
+## Running locally (Conda, Python 3.13)
 - Create and activate the environment from `environment.yml`:
 ```
 conda env create -f environment.yml
