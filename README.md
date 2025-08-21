@@ -1,10 +1,10 @@
-# ORFEUS Dash App
+# ORFEUS Data Visualization 
 
-A Dash application for visualizing scenarios, risk allocation, and LMPs. Provides data visualization for [Operational Risk Financialization of Electricity Under Stochasticity](https://orfeus.princeton.edu) (ORFEUS), Princeton University’s PERFORM team. 
-
-The application will run without a `data` directory but will default to "Stub Mode" with placeholders and a warning that data is missing.
+ORFEUS Data Visualization is an application for visualizing energy demand scenarios, risk allocation, and LMPs. The app provides data visualization for [Operational Risk Financialization of Electricity Under Stochasticity](https://orfeus.princeton.edu) (ORFEUS), Princeton University’s PERFORM team. 
 
 ## Data Requirements 
+
+The application will run without a `data` directory but will default to "Stub Mode" with placeholders and a warning that data is missing.
 
 The `data` directory need contain tuning files, grid topology files, and datasets.
 
@@ -13,12 +13,6 @@ The `data` directory need contain tuning files, grid topology files, and dataset
 * Time series per-day and per-asset CSVs are expected in `data/scenarios_data` for Scenarios.
 * Four CSVs are expected in `data/reliability_cost_index_data` for Reliability Cost Index (Risk Allocation).
 * Per-day pickled data is expected in `data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20` for LMP Geographic Plots.
-
-Validate data integrity by running:
-
-```
-if [ -z "$(sha256sum -c data-checksums.sha256 | grep -v 'OK$')" ]; then echo "All Valid"; fi
-```
 
 ## Runtime Environments 
 
