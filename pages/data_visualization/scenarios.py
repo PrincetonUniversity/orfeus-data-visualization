@@ -4,14 +4,15 @@ import glob
 import numpy as np
 import pandas as pd
 from datetime import timedelta, datetime
-from utils.ui import html, dcc, Input, Output, dbc, dash
+from utils.ui import html, dcc, Input, Output, State, dbc, dash
 import plotly.express as px
 import plotly.graph_objects as go
 
 from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR, dbx, HAS_DROPBOX
 from utils.config import SETTINGS
-from utils.md import load_markdown
+from utils.md import load_markdown, extract_first_h1
 markdown_text_scenario = load_markdown('markdown', 'scenarios.md')
+SCENARIOS_TITLE = extract_first_h1(markdown_text_scenario, fallback='Scenarios')
 dash.register_page(__name__, path='/scenariovisualize', name='Scenarios', order=1)
 
 # Optional local PGScen scenarios directory (from another repo)
@@ -99,14 +100,6 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                               scenario_plot_id = 'rts_scenario_plot_notuning'):
     dcc_tab = dcc.Tab(label=label,
             children=[
-                dbc.Row(
-                    dbc.Col([
-                        html.H3(
-                            'Visualize the Particular Scenario'),
-                        html.Label(
-                            'Please select the following options')
-                    ]),
-                ),
 
                 # dbc.Row(
                 #     dbc.Col([
@@ -120,48 +113,36 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                 #     ])
                 # ),
 
-                dbc.Row(
+                dbc.Row([
                     dbc.Col([
                         html.Label('Select Day'),
                         dcc.Dropdown(date_values,
                                      id=date_values_id,
                                      value=date_values[0],
                                      className='dropdown-short')
-                    ])
-                ),
-
-                # radioitem
-                dbc.Row([
+                    ], xs=12, md=6, lg=4),
                     dbc.Col([
-                        html.Br(),
                         html.Label('Select Asset Type'),
                         dcc.RadioItems(
-                            list(
-                                energy_types),
+                            list(energy_types),
                             'load',
                             id=energy_types_id,
                             className='radioitems')
-                    ])
-                ]),
-
-                # dropdown
-                dbc.Row([
+                    ], xs=12, md=6, lg=4),
                     dbc.Col([
                         html.Label('Select Asset ID'),
                         dcc.Dropdown(id=asset_id,
                                      className='dropdown-long'),
-                        # html.Br(),
-                        # html.Button('Download', id='btn-nclicks-1', n_clicks=0),
-                        html.Hr()
-                    ])
-                ]),
+                    ], xs=12, md=12, lg=4),
+                ], className='controls-row'),
 
                 # plot
-                html.H3('Plot of the Scenario Selected'),
                 html.Wbr(),
                 dbc.Row(dbc.Col([
                     dcc.Graph(
-                        id=scenario_plot_id)
+                        id=scenario_plot_id,
+                        style={"height": "70vh", "width": "100%"},
+                        config={"responsive": True})
                 ]))
             ],
             className='tab',
@@ -169,28 +150,19 @@ def dcc_tab_scenariovisualize(label= 'RTS',
     return dcc_tab
 
 
-html_div_scenariooverview = html.Div(children=[
-
-    html.H1(
-        children='Energy Demand Scenarios Geneartion via Stochastic Model',
-        className='title'
-    ),
-
+html_div_scenariooverview = html.Section(children=[
     html.Div([
-    dcc.Markdown(children=markdown_text_scenario,
-             className='markdown')
+        dcc.Markdown(children=markdown_text_scenario,
+                 className='markdown', id='scenarios-markdown')
+    ], className='section', id='scenarios-markdown-section')
+], className='app-content')
 
-    ],
-        className='section')
-],
-    className='app-content')
-
-html_div_scenariovisualize = html.Div(children=[
+html_div_scenariovisualize = html.Section(children=[
 
                 dbc.Row(
-                    dbc.Col(html.H3(children='Scenarios Visualization',
-                                    className='title'))
-                    , justify='start', align='start'),
+                    dbc.Col(html.H1(children='Scenarios Visualization',
+                                    className='title', id='scenarios-title'))
+                    , justify='start', align='start', id='scenarios-title-row'),
 
                 dbc.Row(dcc.Tabs(
                     children=[
@@ -218,6 +190,7 @@ html_div_scenariovisualize = html.Div(children=[
 layout = html.Div([
     html_div_scenariooverview,
     html_div_scenariovisualize,
+    dcc.Location(id='url-scenarios', refresh=False),
 ])
 
 
@@ -442,9 +415,24 @@ def set_asset_ids_value(energy_types_asset_ids_rts_csv):
     # Input('version_t7k', 'value'),
     Input('date_values_t7k', 'value'),
     Input('energy_types_t7k', 'value'),
-    Input('asset_ids_t7k', 'value'))
-def update_scenario_plot(day, asset_type, asset_id):
-    return build_timeseries('t7k', day, asset_type, asset_id)
+    Input('asset_ids_t7k', 'value'),
+    Input('url-scenarios', 'search'),
+    State('embed-store', 'data'))
+def update_scenario_plot(day, asset_type, asset_id, search, embed):
+    fig = build_timeseries('t7k', day, asset_type, asset_id)
+    try:
+        if embed:
+            fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
+            # showtitle=false hides title in embed mode
+            from urllib.parse import parse_qs
+            q = parse_qs((search or '').lstrip('?'))
+            sval = (q.get('showtitle', [None])[0] or '').strip().lower()
+            showtitle = not (sval in ('0', 'false', 'no', 'off'))
+            if not showtitle:
+                fig.update_layout(title=None)
+    except Exception:
+        pass
+    return fig
 
 
 @dash.callback(
@@ -452,6 +440,49 @@ def update_scenario_plot(day, asset_type, asset_id):
     # Input('version_t7k', 'value'),
     Input('date_values_rts', 'value'),
     Input('energy_types_rts', 'value'),
-    Input('asset_ids_rts', 'value'))
-def update_scenario_plot_rts(day, asset_type, asset_id):
-    return build_timeseries('rts', day, asset_type, asset_id)
+    Input('asset_ids_rts', 'value'),
+    Input('url-scenarios', 'search'),
+    State('embed-store', 'data'))
+def update_scenario_plot_rts(day, asset_type, asset_id, search, embed):
+    fig = build_timeseries('rts', day, asset_type, asset_id)
+    try:
+        if embed:
+            fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
+            # showtitle=false hides title in embed mode
+            from urllib.parse import parse_qs
+            q = parse_qs((search or '').lstrip('?'))
+            sval = (q.get('showtitle', [None])[0] or '').strip().lower()
+            showtitle = not (sval in ('0', 'false', 'no', 'off'))
+            if not showtitle:
+                fig.update_layout(title=None)
+    except Exception:
+        pass
+    return fig
+
+
+@dash.callback(
+    Output('scenarios-markdown-section', 'style'),
+    Output('scenarios-title', 'style'),
+    Output('scenarios-title-row', 'style'),
+    Input('url-scenarios', 'search'),
+)
+def _scenarios_toggle_embed(search):
+    try:
+        from urllib.parse import parse_qs
+        q = parse_qs((search or '').lstrip('?'))
+        val = (q.get('embed', [None])[0] or '').strip().lower()
+        embed = val in ('1', 'true', 'yes', 'on')
+    except Exception:
+        embed = False
+    style_hide = {'display': 'none'} if embed else {}
+    # In embed mode: hide markdown; and if showtitle=false, also hide title and its row.
+    try:
+        from urllib.parse import parse_qs
+        q = parse_qs((search or '').lstrip('?'))
+        sval = (q.get('showtitle', [None])[0] or '').strip().lower()
+        showtitle = not (sval in ('0', 'false', 'no', 'off'))
+    except Exception:
+        showtitle = True
+    title_style = {} if (not embed or showtitle) else {'display': 'none'}
+    row_style = title_style
+    return style_hide, title_style, row_style

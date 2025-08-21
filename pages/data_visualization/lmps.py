@@ -12,13 +12,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import n_colors
 
-from utils.ui import html, dcc, Input, Output, ctx, dbc, dash
+from utils.ui import html, dcc, Input, Output, State, ctx, dbc, dash
 from utils.config import SETTINGS
 from inputs.inputs import date_values_t7k, bus, branch, dbx, HAS_DROPBOX
-from utils.md import load_markdown
+from utils.md import load_markdown, extract_first_h1
 markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
 markdown_text_lmps_plot = load_markdown('markdown', 'lmps_plot.md')
-dash.register_page(__name__, path='/lmpplot', name='LMPs', order=3)
+LMPS_TITLE = extract_first_h1(markdown_text_lmps_overview, fallback='LMPs')
+dash.register_page(__name__, path='/lmpplot', name='LMPs', order=3, title=LMPS_TITLE)
 
 # Mapbox token/style via environment, fallback to OpenStreetMap if missing
 PLOT_TOKEN = SETTINGS.mapbox_token
@@ -65,60 +66,52 @@ def _prepare_pandas_compat():
     except Exception:
         pass
 
-html_div_lmps_overview =  html.Div(children=[
-
-                html.H1(children='Locational Marginal Prices', className='title'),
-
+html_div_lmps_overview =  html.Section(children=[
                 html.Div([
-                    dcc.Markdown(children= markdown_text_lmps_overview, className='markdown'),
-                ])
+                    dcc.Markdown(children= markdown_text_lmps_overview, className='markdown', id='lmps-markdown-overview'),
+                ], className='section', id='lmps-overview-section')
             ], className='app-content')
 
 
 
-html_div_lmps = html.Div(children=[
+html_div_lmps = html.Section(children=[
                   dbc.Row(
-                                            dbc.Col(html.H3(children='LMP Geographic Plots', className='title'))
-                      , justify='start', align='start'),
+                                            dbc.Col(html.H1(children='LMP Geographic Plots', className='title', id='lmps-title'))
+                      , justify='start', align='start', id='lmps-title-row'),
 
                     html.Div([
-                                                dcc.Markdown(children=markdown_text_lmps_plot, className='markdown'),
-                    ],
-                                                className='section'),
+                        dcc.Markdown(children=markdown_text_lmps_plot, className='markdown', id='lmps-markdown-plot'),
+                    ], className='section', id='lmps-plot-section'),
 
-                    html.Hr(),
 
-                    dbc.Row(
+                    dbc.Row([
                         dbc.Col([
                             html.Label('Select Day'),
                             dcc.Dropdown(date_values_t7k[:-2], id='date_values_t7k_lmps',
-                                         value=date_values_t7k[0], className='dropdown-short'),
-                            html.Br()
-                        ])
-                    ),
-
-                    dbc.Row(
+                                         value=date_values_t7k[0], className='dropdown-short')
+                        ], xs=12, md=6, lg=4),
                         dbc.Col([
                             html.Label('Select Hr'),
                             dcc.Dropdown(list(range(24)), id='hr_values_t7k_lmps',
                                          value=15, className='dropdown-short')
-                        ])
-                    ),
+                        ], xs=12, md=6, lg=3),
+                    ], className='controls-row'),
 
                     html.Br(),
 
                     dbc.Row([
                         dbc.Col(
-                            dcc.Graph(id='fig_lmp_geo', className='graph-pad'))
+                            dcc.Graph(id='fig_lmp_geo', className='graph-pad graph-map', config={"responsive": True}))
                     ]
                         , justify='start')
 
                 ], className='app-content')
 
 # Dash Pages expects a module-level variable named 'layout'
-layout = html.Div([
+layout = html.Section([
     html_div_lmps_overview,
     html_div_lmps,
+    dcc.Location(id='url-lmps', refresh=False),
 ])
 
 
@@ -154,7 +147,9 @@ def plot_particular_hour(hr, bus_detail, line_detail):
                 zoom=4.5,
             ),
             title=f"No data available for Hr {hr}",
-            height=600, width=1000
+            legend=dict(orientation='h', x=0, y=-0.1),
+            margin=dict(l=10, r=10, t=40, b=40),
+            height=None, width=None
         )
         return fig_empty, line_detail_hr.iloc[0:0]
 
@@ -319,10 +314,13 @@ def plot_particular_hour(hr, bus_detail, line_detail):
         date_label = bus_detail_hr['Date'].iloc[0]
     except Exception:
         date_label = ''
-    fig1.update_layout(title='LMPs Distribution at Hr {}, {} under Texas 7k Grid'.format(hr, date_label),
-                       legend=dict(x=1, y=1),
-                       coloraxis_colorbar=dict(orientation="h"),
-                       height=600, width=1000)
+    fig1.update_layout(
+        title='LMPs Distribution at Hr {}, {} under Texas 7k Grid'.format(hr, date_label),
+        legend=dict(orientation='h', x=0, y=-0.1),
+        coloraxis_colorbar=dict(orientation="h"),
+        margin=dict(l=10, r=10, t=40, b=40),
+        height=None, width=None
+    )
 
     # Subtle note when there are no congested lines to plot
     if int(line_detail_hr_highcongest.shape[0]) == 0:
@@ -610,9 +608,57 @@ def build_lmp_plot_file(file_name, bus, branch):
 @dash.callback(
     Output('fig_lmp_geo', 'figure'),
     Input('date_values_t7k_lmps', 'value'),
-    Input('hr_values_t7k_lmps', 'value'))
-def hourly_cost_dist_rts(date, hr):
+    Input('hr_values_t7k_lmps', 'value'),
+    Input('url-lmps', 'search'),
+    State('embed-store', 'data'))
+def hourly_cost_dist_rts(date, hr, search, embed):
     bus_detail, line_detail = build_lmp_plot_file(file_name=date + '.p.gz',
                                                   bus=bus, branch=branch)
     fig, _ = plot_particular_hour(hr, bus_detail, line_detail)
+    if embed:
+        try:
+            fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
+            if 'legend' in fig.layout and fig.layout.legend:
+                fig.update_layout(legend=dict(orientation='h', x=0, y=-0.1))
+        except Exception:
+            pass
+        # Optionally hide the visualization title if showtitle=false
+        try:
+            from urllib.parse import parse_qs
+            q = parse_qs((search or '').lstrip('?'))
+            sval = (q.get('showtitle', [None])[0] or '').strip().lower()
+            showtitle = not (sval in ('0', 'false', 'no', 'off'))
+            if not showtitle:
+                fig.update_layout(title=None)
+        except Exception:
+            pass
     return fig
+
+
+@dash.callback(
+    Output('lmps-overview-section', 'style'),
+    Output('lmps-plot-section', 'style'),
+    Output('lmps-title', 'style'),
+    Output('lmps-title-row', 'style'),
+    Input('url-lmps', 'search'),
+)
+def _lmps_toggle_embed(search):
+    try:
+        from urllib.parse import parse_qs
+        q = parse_qs((search or '').lstrip('?'))
+        val = (q.get('embed', [None])[0] or '').strip().lower()
+        embed = val in ('1', 'true', 'yes', 'on')
+    except Exception:
+        embed = False
+    style_hide = {'display': 'none'} if embed else {}
+    # Determine showtitle override
+    try:
+        from urllib.parse import parse_qs
+        q = parse_qs((search or '').lstrip('?'))
+        sval = (q.get('showtitle', [None])[0] or '').strip().lower()
+        showtitle = not (sval in ('0', 'false', 'no', 'off'))
+    except Exception:
+        showtitle = True
+    title_style = {} if (not embed or showtitle) else {'display': 'none'}
+    row_style = title_style
+    return style_hide, style_hide, title_style, row_style

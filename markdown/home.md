@@ -1,3 +1,5 @@
+# Data Visualizations
+
 Explore scenarios, risk allocation, and geographic LMPs.
 
 - [Scenarios Visualization](/scenariovisualize): Compare actuals, forecasts, and scenario bands.

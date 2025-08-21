@@ -5,8 +5,7 @@ dash.register_page(__name__, path='/', name='Home', order=0)
 
 markdown_text_home = load_markdown('markdown', 'home.md')
 
-layout = html.Div([
-    html.H1('Data Visualizations', className='title'),
+layout = html.Section([
     html.Div([
     dcc.Markdown(markdown_text_home, className='markdown'),
     ], className='section')

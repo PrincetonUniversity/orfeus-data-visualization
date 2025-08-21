@@ -102,11 +102,15 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
   margin-left: 2rem;
   margin-right: 2rem;
   margin-top: 0;
-  padding: 1rem 0 0 0;
   text-align: left;
   color: #2e2e2e;
   background: #ffffff;
 }
+
+/* If a section is the first on a page, add top margin for breathing room */
+section.app-content:first-of-type { margin-top: 1rem; }
+/* Prevent double top margins on nested sections */
+section.app-content section.app-content:first-of-type { margin-top: 0; }
 
 /* Titles and markdown */
 .title {
@@ -123,6 +127,38 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
 
 /* Sections with padding */
 .section { padding: 20px; }
+
+/* LMPs plot page: make long markdown flow into two columns on wide screens */
+@media (min-width: 1200px) {
+  #lmps-plot-section .markdown {
+    column-count: 2;
+    column-gap: 2rem;
+    column-fill: balance;
+    /* Improve readability in columns */
+    hyphens: auto;
+  }
+  /* Avoid splitting key blocks across columns */
+  #lmps-plot-section .markdown h1,
+  #lmps-plot-section .markdown h2,
+  #lmps-plot-section .markdown h3,
+  #lmps-plot-section .markdown h4,
+  #lmps-plot-section .markdown ul,
+  #lmps-plot-section .markdown ol,
+  #lmps-plot-section .markdown pre,
+  #lmps-plot-section .markdown table,
+  #lmps-plot-section .markdown blockquote {
+    break-inside: avoid-column;
+  }
+  /* Ensure images/figures scale within a column */
+  #lmps-plot-section .markdown img,
+  #lmps-plot-section .markdown svg,
+  #lmps-plot-section .markdown figure {
+    max-width: 100%;
+  }
+}
+
+/* When embedding, we set display:none inline on containers; ensure no residual spacing */
+.hidden-in-embed { display: none !important; margin: 0 !important; padding: 0 !important; }
 
 /* Controls */
 .dropdown-short { width: 240px; background: transparent; }
@@ -148,8 +184,57 @@ h1 a:hover, h2 a:hover, h3 a:hover, h4 a:hover, h5 a:hover, h6 a:hover {
   border: 0;
 }
 
+/* Controls row: lay out horizontally and wrap on smaller screens */
+.controls-row { align-items: flex-end; row-gap: 10px; }
+.controls-row .dbc-col, .controls-row .col, .controls-row [class^="col-"] {
+  margin-bottom: 6px;
+  min-width: 0; /* allow content to shrink & wrap instead of overflowing */
+}
+.controls-row .dbc-col > *, .controls-row .col > *, .controls-row [class^="col-"] > * {
+  max-width: 100%;
+}
+
+/* Make dropdowns expand to column width responsively */
+.controls-row .dropdown-short, .controls-row .dropdown-long { width: 100%; }
+
+/* Ensure radioitems never overlap/overflow when arranged horizontally */
+.controls-row .radioitems {
+  width: 100%;
+  height: auto;
+  display: grid;
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.controls-row .radioitems label { white-space: normal; line-height: 1.2; }
+.controls-row .radioitems input { margin-right: 6px; }
+
+@media (max-width: 576px) {
+  .radioitems { width: 100%; grid-template-columns: repeat(2, 1fr); height: auto; }
+}
+
+/* Mid-range breakpoint to prevent overlap before stacking kicks in */
+@media (max-width: 992px) {
+  .controls-row { row-gap: 12px; }
+  .controls-row .dbc-col, .controls-row .col, .controls-row [class^="col-"] {
+    flex: 1 1 100%;
+  }
+}
+
 /* Graph helpers */
 .graph-pad { padding-left: 10px; }
+
+/* Map graph sizing: use CSS instead of inline style */
+.graph-map { height: 80vh; width: 100%; }
+
+/* Section divider to replace <hr> tags */
+.section-divider {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,0.15), rgba(0,0,0,0));
+  margin: 12px 0 16px 0;
+  display: none;
+}
 
 /* Tabs styling via classes instead of inline style */
 /* Default (wide screens): horizontal row, no wrapping; allow horizontal scroll if overflow */

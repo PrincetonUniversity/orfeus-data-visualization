@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+from urllib.parse import parse_qs
 
 from utils.ui import dash, dcc, html, Input, Output, State, page_registry, page_container, dbc
 from utils.config import SETTINGS
@@ -43,6 +44,7 @@ navbar_children = [
     dbc.Collapse(dbc.Nav(_nav_links(), className="ms-auto", navbar=True),
                  id="navbar-collapse", is_open=False, navbar=True),
 ]
+# Wrap navbar so we can hide it in embed mode
 navbar = dbc.Navbar(
     dbc.Container(navbar_children, fluid=True),
     dark=False,
@@ -51,10 +53,12 @@ navbar = dbc.Navbar(
 
 
 app.layout = html.Div([
+    dcc.Location(id="url", refresh=False),
     dcc.Store(id='side_click'),
-    navbar,
+    dcc.Store(id='embed-store', data=False),
+    html.Div(navbar, id="navbar-wrapper"),
     banner if banner else html.Div(),
-    html.Div(page_container, className='app-content')
+    html.Section(page_container, className='app-content')
 ])
 
 
@@ -67,6 +71,28 @@ def _toggle_navbar_collapse(n, is_open):
     if n:
         return not (is_open or False)
     return is_open
+
+
+@dash.callback(
+    Output('embed-store', 'data'),
+    Input('url', 'search'),
+)
+def _parse_embed_flag(search: str | None):
+    # Extract embed query parameter; accept 1|true|yes|on (case-insensitive)
+    try:
+        q = parse_qs((search or '').lstrip('?'))
+        val = (q.get('embed', [None])[0] or '').strip().lower()
+        return val in ('1', 'true', 'yes', 'on')
+    except Exception:
+        return False
+
+
+@dash.callback(
+    Output('navbar-wrapper', 'style'),
+    Input('embed-store', 'data'),
+)
+def _toggle_navbar_visibility(embed: bool):
+    return {'display': 'none'} if embed else {}
 
 
 if __name__ == "__main__":

@@ -1,15 +1,16 @@
 import pandas as pd
 from typing import List
 from datetime import date, timedelta, datetime
-from utils.ui import html, dcc, Input, Output, ctx, dash
+from utils.ui import html, dcc, Input, Output, State, ctx, dash
 import plotly.express as px
 
 import dash
 import dash_bootstrap_components as dbc
 from inputs.inputs import type_allocs_rts, asset_allocs_rts, type_allocs_t7k, asset_allocs_t7k
-from utils.md import load_markdown
+from utils.md import load_markdown, extract_first_h1
 markdown_text_riskalloc = load_markdown('markdown', 'allocation.md')
-dash.register_page(__name__, path='/riskallocplot', name='Risk Allocation', order=2)
+RISKALLOC_TITLE = extract_first_h1(markdown_text_riskalloc, fallback='Risk Allocation')
+dash.register_page(__name__, path='/riskallocplot', name='Risk Allocation', order=2, title=RISKALLOC_TITLE)
 
 today = date.today()
 yesterdate_verbal = (today - timedelta(1)).strftime("%b %d")
@@ -57,11 +58,8 @@ asset_cols_t7k = [c for c in asset_allocs_t7k.columns if c != 'time']
 asset_allocs_t7k_day = _safe_daily_mean(asset_allocs_t7k, daterange_t7k, asset_cols_t7k)
 
 html_div_risk_allocation_overview =  html.Div(children=[
-
-                html.H1(children='Risk Allocation', className='title'),
-
                 html.Div([
-                    dcc.Markdown(children=markdown_text_riskalloc, className='markdown')
+                    dcc.Markdown(children=markdown_text_riskalloc, className='markdown', id='riskalloc-markdown')
                 ],
                     className='section')
             ],
@@ -143,9 +141,8 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
                 html.Div(id=daily_index_asset_id, className='index-num'),
                 html.Br()
             ])
-            , justify='start', align='start'),
+            , justify='start', align='start')
 
-        html.Hr()
     ])
 
     html_asset_level_plot = html.Div(children = [
@@ -180,7 +177,9 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
             dbc.Col([
                 dcc.Graph(
                     id=fig_id_asset_alloc,
-                    className='graph-pad'
+                    className='graph-pad',
+                    style={"height": "65vh", "width": "100%"},
+                    config={"responsive": True}
                 )
             ]),
 
@@ -222,7 +221,9 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
                 dcc.Graph(
                     # figure=plot_mean_asset_type_risk_alloc(type_allocs_rts),
                     id=fig_id_type_alloc,
-                    className='graph-pad'
+                    className='graph-pad',
+                    style={"height": "65vh", "width": "100%"},
+                    config={"responsive": True}
                 ))
         ],
             justify='start'),
@@ -244,7 +245,7 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
 
 html_div_risk_allocation = html.Div(children=[
                 dbc.Row(
-                    dbc.Col(html.H3(children='Reliability Cost Index', className='title'))
+                    dbc.Col(html.H1(children='Reliability Cost Index', className='title'))
                     , justify='start', align='start'),
 
                 dbc.Row(dcc.Tabs(
@@ -296,6 +297,14 @@ html_div_risk_allocation = html.Div(children=[
 
 # Dash Pages module-level layout
 layout = html_div_risk_allocation
+
+
+@dash.callback(
+    Output('riskalloc-markdown', 'style'),
+    Input('embed-store', 'data')
+)
+def _riskalloc_toggle_embed(embed: bool):
+    return {'display': 'none'} if embed else {}
 
 def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                                     level='asset_type', asset_id=None):
@@ -404,9 +413,10 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
     Output("fig_mean_asset_type_risk_alloc_rts", "figure"),
     Input('rts-type-allocs-1day', 'n_clicks'),
     Input('rts-type-allocs-1week', 'n_clicks'),
-    Input('rts-type-allocs-hist', 'n_clicks')
+    Input('rts-type-allocs-hist', 'n_clicks'),
+    State('embed-store', 'data')
 )
-def plot_mean_asset_type_risk_alloc_daterange_rts(btn1, btn2, btn3):
+def plot_mean_asset_type_risk_alloc_daterange_rts(btn1, btn2, btn3, embed):
     if "rts-type-allocs-1day" == ctx.triggered_id:
         fig = plot_mean_asset_type_risk_alloc(type_allocs_rts, version='RTS',
                                               period='1day')
@@ -419,6 +429,11 @@ def plot_mean_asset_type_risk_alloc_daterange_rts(btn1, btn2, btn3):
     else:
         fig = plot_mean_asset_type_risk_alloc(type_allocs_rts, version='RTS',
                                               period='1day')
+    try:
+        if embed:
+            fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
+    except Exception:
+        pass
     return fig
 
 
@@ -427,9 +442,10 @@ def plot_mean_asset_type_risk_alloc_daterange_rts(btn1, btn2, btn3):
     Input('asset_ids_risk_alloc_rts', 'value'),
     Input('rts-asset-allocs-1day', 'n_clicks'),
     Input('rts-asset-allocs-1week', 'n_clicks'),
-    Input('rts-asset-allocs-hist', 'n_clicks')
+    Input('rts-asset-allocs-hist', 'n_clicks'),
+    State('embed-store', 'data')
 )
-def asset_ids_risk_alloc_rts(asset_id, button1, button2, button3):
+def asset_ids_risk_alloc_rts(asset_id, button1, button2, button3, embed):
     if asset_id is None:
         return plot_mean_asset_type_risk_alloc(asset_allocs_rts, version='RTS', period='1day', level='asset_id', asset_id=None)
     if "rts-asset-allocs-1day" == ctx.triggered_id:
@@ -456,6 +472,11 @@ def asset_ids_risk_alloc_rts(asset_id, button1, button2, button3):
                                                            period='1day',
                                                            level='asset_id',
                                                            asset_id=asset_id)
+    try:
+        if embed:
+            fig_asset_allocs.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
+    except Exception:
+        pass
     return fig_asset_allocs
 
 
@@ -478,9 +499,10 @@ def find_daily_index_asset_id(asset_id):
     Output("fig_mean_asset_type_risk_alloc_t7k", "figure"),
     Input('t7k-type-allocs-1day', 'n_clicks'),
     Input('t7k-type-allocs-1week', 'n_clicks'),
-    Input('t7k-type-allocs-hist', 'n_clicks')
+    Input('t7k-type-allocs-hist', 'n_clicks'),
+    State('embed-store', 'data')
 )
-def plot_mean_asset_type_risk_alloc_daterange_t7k(btn1, btn2, btn3):
+def plot_mean_asset_type_risk_alloc_daterange_t7k(btn1, btn2, btn3, embed):
     if "t7k-type-allocs-1day" == ctx.triggered_id:
         fig = plot_mean_asset_type_risk_alloc(type_allocs_t7k, version='T7K',
                                               period='1day')
@@ -493,6 +515,11 @@ def plot_mean_asset_type_risk_alloc_daterange_t7k(btn1, btn2, btn3):
     else:
         fig = plot_mean_asset_type_risk_alloc(type_allocs_t7k, version='T7K',
                                               period='1day')
+    try:
+        if embed:
+            fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
+    except Exception:
+        pass
     return fig
 
 @dash.callback(
@@ -500,9 +527,10 @@ def plot_mean_asset_type_risk_alloc_daterange_t7k(btn1, btn2, btn3):
     Input('asset_ids_risk_alloc_t7k', 'value'),
     Input('t7k-asset-allocs-1day', 'n_clicks'),
     Input('t7k-asset-allocs-1week', 'n_clicks'),
-    Input('t7k-asset-allocs-hist', 'n_clicks')
+    Input('t7k-asset-allocs-hist', 'n_clicks'),
+    State('embed-store', 'data')
 )
-def asset_ids_risk_alloc_t7k(asset_id, button1, button2, button3):
+def asset_ids_risk_alloc_t7k(asset_id, button1, button2, button3, embed):
     if asset_id is None:
         return plot_mean_asset_type_risk_alloc(asset_allocs_t7k, version='T7K', period='1day', level='asset_id', asset_id=None)
     if "t7k-asset-allocs-1day" == ctx.triggered_id:
@@ -529,6 +557,11 @@ def asset_ids_risk_alloc_t7k(asset_id, button1, button2, button3):
                                                            period='1day',
                                                            level='asset_id',
                                                            asset_id=asset_id)
+    try:
+        if embed:
+            fig_asset_allocs.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
+    except Exception:
+        pass
     return fig_asset_allocs
 
 
