@@ -6,7 +6,7 @@ ORFEUS Data Visualization is an application for visualizing energy demand scenar
 
 The application will run without a `data` directory but will default to "Stub Mode" with placeholders and a warning that data is missing.
 
-The `data` directory need contain tuning files, grid topology files, and datasets.
+The `data` directory need contain tuning files, grid topology files, and datasets.  They are **not** provided here.
 
 * The tuning files are expected in `data/tuning_final_files`.  These are used to build asset lists and dates.
 * Three grid topology files (`bus.csv`, `branch.csv`, `gen.csv`) are expected in `data/Vatic_Grids/Texas-7k/TX_Data/SourceData`.
