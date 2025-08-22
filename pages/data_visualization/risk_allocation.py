@@ -245,8 +245,8 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
 
 html_div_risk_allocation = html.Div(children=[
                 dbc.Row(
-                    dbc.Col(html.H1(children='Reliability Cost Index', className='title'))
-                    , justify='start', align='start'),
+                    dbc.Col(html.H1(children='Reliability Cost Index', className='title', id='riskalloc-title'))
+                    , justify='start', align='start', id='riskalloc-title-row'),
 
                 dbc.Row(dcc.Tabs(
                     children=[
@@ -295,8 +295,11 @@ html_div_risk_allocation = html.Div(children=[
                     justify='between')
             ], className='app-content')
 
-# Dash Pages module-level layout
-layout = html_div_risk_allocation
+# Dash Pages module-level layout (add a Location component for query param parsing)
+layout = html.Div([
+    html_div_risk_allocation,
+    dcc.Location(id='url-riskalloc', refresh=False),
+])
 
 
 @dash.callback(
@@ -305,6 +308,24 @@ layout = html_div_risk_allocation
 )
 def _riskalloc_toggle_embed(embed: bool):
     return {'display': 'none'} if embed else {}
+
+# Hide the main page title when embed=true & showtitle=false
+@dash.callback(
+    Output('riskalloc-title', 'style'),
+    Output('riskalloc-title-row', 'style'),
+    Input('url-riskalloc', 'search'),
+)
+def _riskalloc_toggle_title(search: str | None):
+    try:
+        from urllib.parse import parse_qs
+        q = parse_qs((search or '').lstrip('?'))
+        embed = (q.get('embed', [''])[0] or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        sval = (q.get('showtitle', [None])[0] or '').strip().lower()
+        showtitle = not (sval in ('0', 'false', 'no', 'off'))
+    except Exception:
+        embed, showtitle = False, True
+    title_style = {} if (not embed or showtitle) else {'display': 'none'}
+    return title_style, title_style
 
 def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                                     level='asset_type', asset_id=None):
