@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from datetime import timedelta, datetime
 from utils.ui import html, dcc, Input, Output, State, dbc, dash
+from utils.accessibility import figure_to_table_html
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -139,10 +140,17 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                 # plot
                 html.Wbr(),
                 dbc.Row(dbc.Col([
-                    dcc.Graph(
-                        id=scenario_plot_id,
-                        style={"height": "70vh", "width": "100%"},
-                        config={"responsive": True})
+                    html.Figure([
+                        dcc.Graph(
+                            id=scenario_plot_id,
+                            style={"height": "70vh", "width": "100%"},
+                            config={"responsive": True}),
+                        html.Figcaption(id=f"{scenario_plot_id}-caption", className='vis-caption', tabIndex=0)
+                    ], className='graph-figure', role='group', **{"aria-labelledby": f"{scenario_plot_id}-caption"}),
+                    html.Details([
+                        html.Summary("Data table", **{"aria-controls": f"{scenario_plot_id}-table"}),
+                        html.Div(id=f"{scenario_plot_id}-table", className='vis-table-wrapper')
+                    ], open=False)
                 ]))
             ],
             className='tab',
@@ -412,6 +420,7 @@ def set_asset_ids_value(energy_types_asset_ids_rts_csv):
 
 @dash.callback(
     Output('t7k_scenario_plot_notuning', 'figure'),
+    Output('t7k_scenario_plot_notuning-caption', 'children'),
     # Input('version_t7k', 'value'),
     Input('date_values_t7k', 'value'),
     Input('energy_types_t7k', 'value'),
@@ -432,11 +441,26 @@ def update_scenario_plot(day, asset_type, asset_id, search, embed):
                 fig.update_layout(title=None)
     except Exception:
         pass
-    return fig
+    # Caption summarizing ranges
+    caption = f"Scenarios plot T7K {asset_type} asset {asset_id} on {day}."
+    try:
+        if fig and fig.data:
+            # Attempt to summarize first 3 series
+            stats_parts = []
+            for tr in fig.data[:3]:
+                yvals = [v for v in getattr(tr, 'y', []) if isinstance(v, (int, float))]
+                if yvals:
+                    stats_parts.append(f"{tr.name}: {min(yvals):.1f}-{max(yvals):.1f}")
+            if stats_parts:
+                caption += " " + "; ".join(stats_parts)
+    except Exception:
+        pass
+    return fig, caption
 
 
 @dash.callback(
     Output('rts_scenario_plot_notuning', 'figure'),
+    Output('rts_scenario_plot_notuning-caption', 'children'),
     # Input('version_t7k', 'value'),
     Input('date_values_rts', 'value'),
     Input('energy_types_rts', 'value'),
@@ -457,7 +481,19 @@ def update_scenario_plot_rts(day, asset_type, asset_id, search, embed):
                 fig.update_layout(title=None)
     except Exception:
         pass
-    return fig
+    caption = f"Scenarios plot RTS {asset_type} asset {asset_id} on {day}."
+    try:
+        if fig and fig.data:
+            stats_parts = []
+            for tr in fig.data[:3]:
+                yvals = [v for v in getattr(tr, 'y', []) if isinstance(v, (int, float))]
+                if yvals:
+                    stats_parts.append(f"{tr.name}: {min(yvals):.1f}-{max(yvals):.1f}")
+            if stats_parts:
+                caption += " " + "; ".join(stats_parts)
+    except Exception:
+        pass
+    return fig, caption
 
 
 @dash.callback(
@@ -486,3 +522,26 @@ def _scenarios_toggle_embed(search):
     title_style = {} if (not embed or showtitle) else {'display': 'none'}
     row_style = title_style
     return style_hide, title_style, row_style
+
+
+# Data table population callbacks (reuse central accessibility helper)
+@dash.callback(
+    Output('rts_scenario_plot_notuning-table', 'children'),
+    Input('rts_scenario_plot_notuning', 'figure')
+)
+def _update_rts_scen_table(fig_json):  # noqa: D401
+    try:
+        return figure_to_table_html(fig_json)
+    except Exception:
+        return html.Em('Unavailable')
+
+
+@dash.callback(
+    Output('t7k_scenario_plot_notuning-table', 'children'),
+    Input('t7k_scenario_plot_notuning', 'figure')
+)
+def _update_t7k_scen_table(fig_json):  # noqa: D401
+    try:
+        return figure_to_table_html(fig_json)
+    except Exception:
+        return html.Em('Unavailable')

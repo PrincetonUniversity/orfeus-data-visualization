@@ -291,3 +291,17 @@ section.app-content section.app-content:first-of-type { margin-top: 0; }
 
 /* Simple inline helper */
 .inline { display: inline; }
+
+/* Accessible visualization data tables */
+.vis-table-wrapper { margin-top: 8px; overflow-x: auto; max-height: 50vh; }
+.vis-table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.3; }
+.vis-table thead th { position: sticky; top: 0; background: #fafafa; z-index: 1; border-bottom: 2px solid #ddd; text-align: left; padding: 4px 6px; font-weight: 600; }
+.vis-table tbody td { padding: 3px 6px; border-bottom: 1px solid #eee; }
+/* Striped rows for readability */
+.vis-table tbody tr:nth-child(odd) { background: #f9f9f9; }
+.vis-table tbody tr:nth-child(even) { background: #ffffff; }
+.vis-table tbody tr:hover { background: #f0f5ff; }
+/* Focus outline for keyboard navigation */
+.vis-table td:focus, .vis-table th:focus { outline: 2px solid #005a9e; outline-offset: 2px; }
+details > summary { cursor: pointer; font-weight: 600; margin-top: 6px; }
+details[open] > summary { color: #E87722; }

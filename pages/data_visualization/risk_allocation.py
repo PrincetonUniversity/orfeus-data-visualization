@@ -1,8 +1,9 @@
 import pandas as pd
 from typing import List
 from datetime import date, timedelta, datetime
-from utils.ui import html, dcc, Input, Output, State, ctx, dash
+from utils.ui import html, dcc, Input, Output, State, ctx, dash, COLORBLIND_PALETTE, PATTERN_SHAPES
 import plotly.express as px
+from utils.accessibility import figure_to_table_html
 
 import dash
 import dash_bootstrap_components as dbc
@@ -175,17 +176,21 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
 
         dbc.Row([
             dbc.Col([
-                dcc.Graph(
-                    id=fig_id_asset_alloc,
-                    className='graph-pad',
-                    style={"height": "65vh", "width": "100%"},
-                    config={"responsive": True}
-                )
-            ]),
-
-        ],
-            justify='start',
-            align='start')
+                html.Figure([
+                    dcc.Graph(
+                        id=fig_id_asset_alloc,
+                        className='graph-pad',
+                        style={"height": "65vh", "width": "100%"},
+                        config={"responsive": True},
+                    ),
+                    html.Figcaption(id=f"{fig_id_asset_alloc}-caption", className='vis-caption', tabIndex=0)
+                ], className='graph-figure', role='group', **{"aria-labelledby": f"{fig_id_asset_alloc}-caption"}),
+                html.Details([
+                    html.Summary("Data table (asset)", **{"aria-controls": f"{fig_id_asset_alloc}-table"}),
+                    html.Div(id=f"{fig_id_asset_alloc}-table", className='vis-table-wrapper')
+                ], open=False)
+            ])
+        ], justify='start', align='start')
 
     ])
 
@@ -217,18 +222,24 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
         ]),
 
         dbc.Row([
-            dbc.Col(
-                dcc.Graph(
-                    # figure=plot_mean_asset_type_risk_alloc(type_allocs_rts),
-                    id=fig_id_type_alloc,
-                    className='graph-pad',
-                    style={"height": "65vh", "width": "100%"},
-                    config={"responsive": True}
-                ))
-        ],
-            justify='start'),
+            dbc.Col([
+                html.Figure([
+                    dcc.Graph(
+                        id=fig_id_type_alloc,
+                        className='graph-pad',
+                        style={"height": "65vh", "width": "100%"},
+                        config={"responsive": True},
+                    ),
+                    html.Figcaption(id=f"{fig_id_type_alloc}-caption", className='vis-caption', tabIndex=0)
+                ], className='graph-figure', role='group', **{"aria-labelledby": f"{fig_id_type_alloc}-caption"}),
+                html.Details([
+                    html.Summary("Data table (types)", **{"aria-controls": f"{fig_id_type_alloc}-table"}),
+                    html.Div(id=f"{fig_id_type_alloc}-table", className='vis-table-wrapper')
+                ], open=False)
+            ])
+        ], justify='start'),
 
-        html.Hr()
+        html.Div(className='section-divider')
     ])
 
     if label == 'RTS':
@@ -427,11 +438,23 @@ def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
     # )
 
     fig_type_allocs.update_yaxes(title_font_size=25)
+    # Apply accessible color palette & line dash patterns
+    try:
+        for i, tr in enumerate(fig_type_allocs.data):
+            if i < len(COLORBLIND_PALETTE):
+                tr.line.color = COLORBLIND_PALETTE[i]
+            if i % 3 == 1:
+                tr.line.dash = 'dash'
+            elif i % 3 == 2:
+                tr.line.dash = 'dot'
+    except Exception:
+        pass
     return fig_type_allocs
 
 
 @dash.callback(
     Output("fig_mean_asset_type_risk_alloc_rts", "figure"),
+    Output("fig_mean_asset_type_risk_alloc_rts-caption", "children"),
     Input('rts-type-allocs-1day', 'n_clicks'),
     Input('rts-type-allocs-1week', 'n_clicks'),
     Input('rts-type-allocs-hist', 'n_clicks'),
@@ -455,11 +478,36 @@ def plot_mean_asset_type_risk_alloc_daterange_rts(btn1, btn2, btn3, embed):
             fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
     except Exception:
         pass
-    return fig
+    # Build accessible caption summary
+    cap = []
+    try:
+        if fig and fig.data:
+            cap.append("Series: " + ", ".join([tr.name or f"Series {i+1}" for i, tr in enumerate(fig.data)]))
+            # Summaries per trace (first 3 traces typical)
+            for tr in fig.data[:3]:
+                yvals = [v for v in tr.y if isinstance(v, (int, float))]
+                if yvals:
+                    cap.append(f"{tr.name}: min {min(yvals):.2f}, max {max(yvals):.2f}, mean {sum(yvals)/len(yvals):.2f}")
+    except Exception:
+        pass
+    caption = " | ".join(cap) if cap else "Reliability Cost Index time series chart"
+    return fig, caption
+
+
+@dash.callback(
+    Output('fig_mean_asset_type_risk_alloc_rts-table', 'children'),
+    Input('fig_mean_asset_type_risk_alloc_rts', 'figure')
+)
+def _update_rts_type_table(fig_json):
+    try:
+        return figure_to_table_html(fig_json)
+    except Exception:
+        return html.Em('Unavailable')
 
 
 @dash.callback(
     Output('fig_asset_risk_alloc_rts', 'figure'),
+    Output('fig_asset_risk_alloc_rts-caption', 'children'),
     Input('asset_ids_risk_alloc_rts', 'value'),
     Input('rts-asset-allocs-1day', 'n_clicks'),
     Input('rts-asset-allocs-1week', 'n_clicks'),
@@ -498,7 +546,26 @@ def asset_ids_risk_alloc_rts(asset_id, button1, button2, button3, embed):
             fig_asset_allocs.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
     except Exception:
         pass
-    return fig_asset_allocs
+    # Caption summarizing asset series
+    caption = f"Asset {asset_id} Reliability Cost Index time series"
+    try:
+        if fig_asset_allocs and fig_asset_allocs.data and fig_asset_allocs.data[0].y is not None:
+            yvals = [v for v in fig_asset_allocs.data[0].y if isinstance(v, (int, float))]
+            if yvals:
+                caption += f"; min {min(yvals):.2f}, max {max(yvals):.2f}, mean {sum(yvals)/len(yvals):.2f}"
+    except Exception:
+        pass
+    return fig_asset_allocs, caption
+
+@dash.callback(
+    Output('fig_asset_risk_alloc_rts-table', 'children'),
+    Input('fig_asset_risk_alloc_rts', 'figure')
+)
+def _update_rts_asset_table(fig_json):
+    try:
+        return figure_to_table_html(fig_json)
+    except Exception:
+        return html.Em('Unavailable')
 
 
 @dash.callback(
@@ -518,6 +585,7 @@ def find_daily_index_asset_id(asset_id):
 
 @dash.callback(
     Output("fig_mean_asset_type_risk_alloc_t7k", "figure"),
+    Output("fig_mean_asset_type_risk_alloc_t7k-caption", "children"),
     Input('t7k-type-allocs-1day', 'n_clicks'),
     Input('t7k-type-allocs-1week', 'n_clicks'),
     Input('t7k-type-allocs-hist', 'n_clicks'),
@@ -541,10 +609,32 @@ def plot_mean_asset_type_risk_alloc_daterange_t7k(btn1, btn2, btn3, embed):
             fig.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
     except Exception:
         pass
-    return fig
+    cap = []
+    try:
+        if fig and fig.data:
+            cap.append("Series: " + ", ".join([tr.name or f"Series {i+1}" for i, tr in enumerate(fig.data)]))
+            for tr in fig.data[:3]:
+                yvals = [v for v in tr.y if isinstance(v, (int, float))]
+                if yvals:
+                    cap.append(f"{tr.name}: min {min(yvals):.2f}, max {max(yvals):.2f}, mean {sum(yvals)/len(yvals):.2f}")
+    except Exception:
+        pass
+    caption = " | ".join(cap) if cap else "Reliability Cost Index time series chart"
+    return fig, caption
+
+@dash.callback(
+    Output('fig_mean_asset_type_risk_alloc_t7k-table', 'children'),
+    Input('fig_mean_asset_type_risk_alloc_t7k', 'figure')
+)
+def _update_t7k_type_table(fig_json):
+    try:
+        return figure_to_table_html(fig_json)
+    except Exception:
+        return html.Em('Unavailable')
 
 @dash.callback(
     Output('fig_asset_risk_alloc_t7k', 'figure'),
+    Output('fig_asset_risk_alloc_t7k-caption', 'children'),
     Input('asset_ids_risk_alloc_t7k', 'value'),
     Input('t7k-asset-allocs-1day', 'n_clicks'),
     Input('t7k-asset-allocs-1week', 'n_clicks'),
@@ -583,7 +673,25 @@ def asset_ids_risk_alloc_t7k(asset_id, button1, button2, button3, embed):
             fig_asset_allocs.update_layout(margin=dict(l=10, r=10, t=30, b=10), width=None, height=None)
     except Exception:
         pass
-    return fig_asset_allocs
+    caption = f"Asset {asset_id} Reliability Cost Index time series"
+    try:
+        if fig_asset_allocs and fig_asset_allocs.data and fig_asset_allocs.data[0].y is not None:
+            yvals = [v for v in fig_asset_allocs.data[0].y if isinstance(v, (int, float))]
+            if yvals:
+                caption += f"; min {min(yvals):.2f}, max {max(yvals):.2f}, mean {sum(yvals)/len(yvals):.2f}"
+    except Exception:
+        pass
+    return fig_asset_allocs, caption
+
+@dash.callback(
+    Output('fig_asset_risk_alloc_t7k-table', 'children'),
+    Input('fig_asset_risk_alloc_t7k', 'figure')
+)
+def _update_t7k_asset_table(fig_json):
+    try:
+        return figure_to_table_html(fig_json)
+    except Exception:
+        return html.Em('Unavailable')
 
 
 @dash.callback(

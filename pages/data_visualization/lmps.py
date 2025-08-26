@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 from plotly.colors import n_colors
 
 from utils.ui import html, dcc, Input, Output, State, ctx, dbc, dash
+from utils.accessibility import figure_to_table_html
 from utils.config import SETTINGS
 from inputs.inputs import date_values_t7k, bus, branch, dbx, HAS_DROPBOX
 from utils.md import load_markdown, extract_first_h1
@@ -100,10 +101,17 @@ html_div_lmps = html.Section(children=[
                     html.Br(),
 
                     dbc.Row([
-                        dbc.Col(
-                            dcc.Graph(id='fig_lmp_geo', className='graph-pad graph-map', config={"responsive": True}))
-                    ]
-                        , justify='start')
+                        dbc.Col([
+                            html.Figure([
+                                dcc.Graph(id='fig_lmp_geo', className='graph-pad graph-map', config={"responsive": True}),
+                                html.Figcaption(id='fig_lmp_geo-caption', className='vis-caption', tabIndex=0)
+                            ], className='graph-figure', role='group', **{"aria-labelledby": 'fig_lmp_geo-caption'}),
+                            html.Details([
+                                html.Summary("Data table", **{"aria-controls": "fig_lmp_geo-table"}),
+                                html.Div(id='fig_lmp_geo-table', className='vis-table-wrapper')
+                            ], open=False)
+                        ])
+                    ], justify='start')
 
                 ], className='app-content')
 
@@ -607,6 +615,7 @@ def build_lmp_plot_file(file_name, bus, branch):
 
 @dash.callback(
     Output('fig_lmp_geo', 'figure'),
+    Output('fig_lmp_geo-caption', 'children'),
     Input('date_values_t7k_lmps', 'value'),
     Input('hr_values_t7k_lmps', 'value'),
     Input('url-lmps', 'search'),
@@ -632,7 +641,33 @@ def hourly_cost_dist_rts(date, hr, search, embed):
                 fig.update_layout(title=None)
         except Exception:
             pass
-    return fig
+    # Build accessible caption summarizing key stats
+    caption = f"LMP geographic distribution for hour {hr} on {date}."
+    try:
+        if isinstance(bus_detail, pd.DataFrame) and not bus_detail.empty and 'LMP' in bus_detail.columns:
+            lmp_vals = pd.to_numeric(bus_detail['LMP'], errors='coerce').dropna().tolist()
+            if lmp_vals:
+                mn = min(lmp_vals); mx = max(lmp_vals)
+                caption += f" Buses: {len(bus_detail)}; LMP min {mn:.2f}, max {mx:.2f}."
+        if isinstance(line_detail, pd.DataFrame) and 'CongestionRatio' in line_detail.columns:
+            congested = (line_detail['CongestionRatio'] >= 0.98).sum()
+            caption += f" Congested lines (>=98% rating): {congested}."
+        if 'title' in fig.layout and fig.layout.title:
+            caption += f" Title: {fig.layout.title.text}."
+    except Exception:
+        pass
+    return fig, caption
+
+
+@dash.callback(
+    Output('fig_lmp_geo-table', 'children'),
+    Input('fig_lmp_geo', 'figure')
+)
+def _update_lmp_table(fig_json):
+    try:
+        return figure_to_table_html(fig_json)
+    except Exception:
+        return html.Em('Unavailable')
 
 
 @dash.callback(
