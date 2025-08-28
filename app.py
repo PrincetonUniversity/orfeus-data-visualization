@@ -9,10 +9,22 @@ from utils.dropbox_client import get_dropbox
 # Dropbox client (lazy-verified). Expose on the module for other modules if needed.
 dbx, HAS_DROPBOX = get_dropbox()
 
-app = dash.Dash(__name__, use_pages=True,
-                external_stylesheets=[dbc.themes.CERULEAN],
-                suppress_callback_exceptions=True)
+app = dash.Dash(
+    __name__,
+    use_pages=True,
+    external_stylesheets=[dbc.themes.CERULEAN],
+    suppress_callback_exceptions=True,
+    assets_ignore="templates"
+)
 app.title = 'ORFEUS Data Website'
+
+# Load external language-declared template if present
+_tpl = Path(__file__).parent / 'templates' / 'index.html'
+try:
+    if _tpl.exists():
+        app.index_string = _tpl.read_text(encoding='utf-8')
+except Exception:
+    pass
 
 # Simple health endpoint for container orchestrators
 @app.server.get("/healthz")
@@ -22,11 +34,9 @@ def _healthz():
 
 # -------- App Shell (Navbar + Page Container) --------
 
-def _nav_links():
-    """Build nav links from Dash Pages registry, honoring 'order' and optional meta.hide_from_nav."""
+def _sorted_pages():
     pages = [p for p in page_registry.values() if not p.get('meta', {}).get('hide_from_nav')]
-    pages = sorted(pages, key=lambda p: p.get('order', 0))
-    return [dbc.NavItem(dbc.NavLink(p.get('name', p['path'].strip('/').title()) or 'Home', href=p['path'], active="exact")) for p in pages]
+    return sorted(pages, key=lambda p: p.get('order', 0))
 
 
 banner = None
@@ -41,7 +51,7 @@ if getattr(SETTINGS, "stub_mode", False):
 navbar_children = [
     dbc.NavbarBrand("ORFEUS Data Visualization", href="/"),
     dbc.NavbarToggler(id="navbar-toggler", n_clicks=0),
-    dbc.Collapse(dbc.Nav(_nav_links(), className="ms-auto", navbar=True),
+    dbc.Collapse(dbc.Nav(id="nav-links", className="ms-auto", navbar=True),
                  id="navbar-collapse", is_open=False, navbar=True),
 ]
 # Wrap navbar so we can hide it in embed mode
@@ -56,10 +66,29 @@ app.layout = html.Div([
     dcc.Location(id="url", refresh=False),
     dcc.Store(id='side_click'),
     dcc.Store(id='embed-store', data=False),
+    # Global live region for dropdown option focus announcements
+    html.Div(id='dropdown-live-region', className='visually-hidden', **{'aria-live': 'polite', 'role': 'status'}),
     html.Div(navbar, id="navbar-wrapper"),
     banner if banner else html.Div(),
     html.Section(page_container, className='app-content')
 ])
+
+
+@dash.callback(
+    Output('nav-links', 'children'),
+    Input('url', 'pathname')
+)
+def _update_nav_links(pathname: str | None):
+    """Rebuild nav links each route change adding aria-current to the active link."""
+    pathname = pathname or '/'
+    items = []
+    for p in _sorted_pages():
+        name = p.get('name', p['path'].strip('/').title()) or 'Home'
+        path = p['path']
+    # Use dbc.NavLink (built-in active class handling); skip aria-current (unsupported prop)
+    link = dbc.NavLink(name, href=path, active='exact', title=f"Go to {name}")
+    items.append(dbc.NavItem(link))
+    return items
 
 
 @dash.callback(

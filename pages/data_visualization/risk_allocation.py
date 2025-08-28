@@ -117,33 +117,41 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
 
     asset_level_index_title = 'Asset Level Reliability Cost Index on {}'.format(yesterdate_verbal)
 
-    html_asset_level_index = html.Div(children = [
+    html_asset_level_index = html.Div(children=[
         dbc.Row(
             dbc.Col([
                 html.Br(),
                 html.H3(children=asset_level_index_title, className='index-title')
             ]),
-            justify='start', align='start'),
-
+            justify='start', align='start'
+        ),
         dbc.Row([
             dbc.Col([
                 html.Div(
-                    className="four columns pretty_container",
+                    className="four columns pretty_container a11y-dropdown-labeled",
+                    **{'data-label': 'Select Asset Id'},
                     children=[
-                        html.Label('Select Asset Id'),
-                        dcc.Dropdown(asset_ids, placeholder='Asset ID', id=asset_ids_id,
-                                     value=asset_ids[0], className='dropdown-long')
-                    ])
-            ])]),
-
+                        html.Label('Select Asset Id', id=f'label-{asset_ids_id}', htmlFor=asset_ids_id),
+                        dcc.Dropdown(
+                            asset_ids,
+                            placeholder='Asset ID',
+                            id=asset_ids_id,
+                            value=asset_ids[0],
+                            className='dropdown-long'
+                        )
+                    ]
+                ),
+                html.Div(id=f'live-{asset_ids_id}', className='visually-hidden', **{'aria-live': 'polite', 'role': 'status'})
+            ])
+        ], justify='start', align='start'),
         dbc.Row(
             dbc.Col([
                 html.Br(),
                 html.Div(id=daily_index_asset_id, className='index-num'),
                 html.Br()
-            ])
-            , justify='start', align='start')
-
+            ]),
+            justify='start', align='start'
+        )
     ])
 
     html_asset_level_plot = html.Div(children = [
@@ -249,66 +257,67 @@ def dcc_tab_risk_allocation(label = 'RTS', yesterdate_verbal = yesterdate_verbal
         tab_children = [dbc_asset_type_title, dbc_solar_index, dbc_wind_index,
                         html_asset_level_index, html_asset_level_plot, html_asset_type_plot]
 
-    dcc_tab = dcc.Tab(label= label, children=tab_children,
-                                    className='tab',
-                                    selected_className='tab--selected')
-    return dcc_tab
+    # Return plain container (panel) content; tab chrome handled outside for a11y
+    return html.Div(tab_children)
+
+_panel_rts = dcc_tab_risk_allocation(label='RTS',
+                                     yesterdate_verbal=yesterdate_verbal,
+                                     type_allocs_rtpv_day=type_allocs_rts_day['RTPV'],
+                                     type_allocs_pv_day=type_allocs_rts_day['PV'],
+                                     type_allocs_wind_day=type_allocs_rts_day['WIND'],
+                                     asset_ids=asset_ids_risk_alloc_rts,
+                                     asset_ids_id='asset_ids_risk_alloc_rts',
+                                     daily_index_asset_id='daily_index_asset_id_rts',
+                                     button_id_day_type_alloc='rts-type-allocs-1day',
+                                     button_id_week_type_alloc='rts-type-allocs-1week',
+                                     button_id_hist_type_alloc='rts-type-allocs-hist',
+                                     fig_id_type_alloc='fig_mean_asset_type_risk_alloc_rts',
+                                     asset_id_in_plot_title='asset_id_in_plot_title_rts',
+                                     button_id_day_asset_alloc='rts-asset-allocs-1day',
+                                     button_id_week_asset_alloc='rts-asset-allocs-1week',
+                                     button_id_hist_asset_alloc='rts-asset-allocs-hist',
+                                     fig_id_asset_alloc='fig_asset_risk_alloc_rts')
+
+_panel_t7k = dcc_tab_risk_allocation(label='T7K',
+                                     yesterdate_verbal=yesterdate_verbal,
+                                     type_allocs_pv_day=type_allocs_t7k_day['PV'],
+                                     type_allocs_wind_day=type_allocs_t7k_day['WIND'],
+                                     asset_ids=asset_ids_risk_alloc_t7k,
+                                     asset_ids_id='asset_ids_risk_alloc_t7k',
+                                     daily_index_asset_id='daily_index_asset_id_t7k',
+                                     button_id_day_type_alloc='t7k-type-allocs-1day',
+                                     button_id_week_type_alloc='t7k-type-allocs-1week',
+                                     button_id_hist_type_alloc='t7k-type-allocs-hist',
+                                     fig_id_type_alloc='fig_mean_asset_type_risk_alloc_t7k',
+                                     asset_id_in_plot_title='asset_id_in_plot_title_t7k',
+                                     button_id_day_asset_alloc='t7k-asset-allocs-1day',
+                                     button_id_week_asset_alloc='t7k-asset-allocs-1week',
+                                     button_id_hist_asset_alloc='t7k-asset-allocs-hist',
+                                     fig_id_asset_alloc='fig_asset_risk_alloc_t7k')
 
 html_div_risk_allocation = html.Div(children=[
-                dbc.Row(
-                    dbc.Col(html.H1(children='Reliability Cost Index', className='title', id='riskalloc-title'))
-                    , justify='start', align='start', id='riskalloc-title-row'),
-
-                dbc.Row(dcc.Tabs(
-                    children=[
-                        dcc_tab_risk_allocation(label='RTS',
-                                                yesterdate_verbal=yesterdate_verbal,
-                                                type_allocs_rtpv_day=
-                                                type_allocs_rts_day['RTPV'],
-                                                type_allocs_pv_day=
-                                                type_allocs_rts_day['PV'],
-                                                type_allocs_wind_day=
-                                                type_allocs_rts_day['WIND'],
-                                                asset_ids=asset_ids_risk_alloc_rts,
-                                                asset_ids_id='asset_ids_risk_alloc_rts',
-                                                daily_index_asset_id='daily_index_asset_id_rts',
-                                                button_id_day_type_alloc='rts-type-allocs-1day',
-                                                button_id_week_type_alloc='rts-type-allocs-1week',
-                                                button_id_hist_type_alloc='rts-type-allocs-hist',
-                                                fig_id_type_alloc='fig_mean_asset_type_risk_alloc_rts',
-                                                asset_id_in_plot_title='asset_id_in_plot_title_rts',
-                                                button_id_day_asset_alloc='rts-asset-allocs-1day',
-                                                button_id_week_asset_alloc='rts-asset-allocs-1week',
-                                                button_id_hist_asset_alloc='rts-asset-allocs-hist',
-                                                fig_id_asset_alloc='fig_asset_risk_alloc_rts'),
-
-                        dcc_tab_risk_allocation(label='T7K',
-                                                yesterdate_verbal=yesterdate_verbal,
-                                                type_allocs_pv_day=
-                                                type_allocs_t7k_day['PV'],
-                                                type_allocs_wind_day=
-                                                type_allocs_t7k_day['WIND'],
-                                                asset_ids=asset_ids_risk_alloc_t7k,
-                                                asset_ids_id='asset_ids_risk_alloc_t7k',
-                                                daily_index_asset_id='daily_index_asset_id_t7k',
-                                                button_id_day_type_alloc='t7k-type-allocs-1day',
-                                                button_id_week_type_alloc='t7k-type-allocs-1week',
-                                                button_id_hist_type_alloc='t7k-type-allocs-hist',
-                                                fig_id_type_alloc='fig_mean_asset_type_risk_alloc_t7k',
-                                                asset_id_in_plot_title='asset_id_in_plot_title_t7k',
-                                                button_id_day_asset_alloc='t7k-asset-allocs-1day',
-                                                button_id_week_asset_alloc='t7k-asset-allocs-1week',
-                                                button_id_hist_asset_alloc='t7k-asset-allocs-hist',
-                                                fig_id_asset_alloc='fig_asset_risk_alloc_t7k'),
-
-                    ], className='tabs'
-                ),
-                    justify='between')
-            ], className='app-content')
+    dbc.Row(
+        dbc.Col(html.H1(children='Reliability Cost Index', className='title', id='riskalloc-title')),
+        justify='start', align='start', id='riskalloc-title-row'
+    ),
+    # Accessible tablist
+    html.Div([
+        html.Button('RTS', id='riskalloc-tab-btn-RTS', role='tab', **{
+            'aria-selected': 'true', 'aria-controls': 'riskalloc-panel-RTS', 'tabIndex': 0
+        , 'aria-label': 'Show RTS dataset'}, className='a11y-tab'),
+        html.Button('T7K', id='riskalloc-tab-btn-T7K', role='tab', **{
+            'aria-selected': 'false', 'aria-controls': 'riskalloc-panel-T7K', 'tabIndex': -1
+        , 'aria-label': 'Show T7K dataset'}, className='a11y-tab')
+    ], role='tablist', className='a11y-tablist', **{'aria-label': 'Risk Allocation dataset selection'}),
+    # Panels
+    html.Div(_panel_rts.children, id='riskalloc-panel-RTS', role='tabpanel', **{'aria-labelledby': 'riskalloc-tab-btn-RTS'}),
+    html.Div(_panel_t7k.children, id='riskalloc-panel-T7K', role='tabpanel', **{'aria-labelledby': 'riskalloc-tab-btn-T7K'}, style={'display': 'none'}),
+], className='app-content')
 
 # Dash Pages module-level layout (add a Location component for query param parsing)
 layout = html.Div([
     html_div_risk_allocation,
+    dcc.Store(id='riskalloc-active-tab', data='RTS'),
     dcc.Location(id='url-riskalloc', refresh=False),
 ])
 
@@ -337,6 +346,33 @@ def _riskalloc_toggle_title(search: str | None):
         embed, showtitle = False, True
     title_style = {} if (not embed or showtitle) else {'display': 'none'}
     return title_style, title_style
+
+# --- Accessible tab interaction callbacks ---
+@dash.callback(
+    Output('riskalloc-active-tab', 'data'),
+    Input('riskalloc-tab-btn-RTS', 'n_clicks'),
+    Input('riskalloc-tab-btn-T7K', 'n_clicks'),
+    prevent_initial_call=True
+)
+def _riskalloc_set_active_tab(rts_clicks, t7k_clicks):
+    trig = ctx.triggered_id
+    if trig == 'riskalloc-tab-btn-T7K':
+        return 'T7K'
+    return 'RTS'
+
+@dash.callback(
+    Output('riskalloc-panel-RTS', 'style'),
+    Output('riskalloc-panel-T7K', 'style'),
+    Output('riskalloc-tab-btn-RTS', 'aria-selected'),
+    Output('riskalloc-tab-btn-T7K', 'aria-selected'),
+    Output('riskalloc-tab-btn-RTS', 'tabIndex'),
+    Output('riskalloc-tab-btn-T7K', 'tabIndex'),
+    Input('riskalloc-active-tab', 'data')
+)
+def _riskalloc_update_tab_styles(active):
+    if active == 'T7K':
+        return {'display': 'none'}, {}, 'false', 'true', -1, 0
+    return {}, {'display': 'none'}, 'true', 'false', 0, -1
 
 def plot_mean_asset_type_risk_alloc(type_allocs, version='RTS', period='1day',
                                     level='asset_type', asset_id=None):
@@ -707,3 +743,24 @@ def find_daily_index_asset_id_t7k(asset_id_t7k):
     Input('asset_ids_risk_alloc_t7k', 'value'))
 def set_asset_id_in_plot_title_t7k(asset_id_t7k):
     return f'{asset_id_t7k}'
+
+
+# Live region announcements for asset id dropdowns
+@dash.callback(
+    Output('live-asset_ids_risk_alloc_rts', 'children'),
+    Input('asset_ids_risk_alloc_rts', 'value')
+)
+def _announce_asset_rts(val):  # noqa: D401
+    if not val:
+        return ''
+    return f"Asset ID selected {val}"
+
+
+@dash.callback(
+    Output('live-asset_ids_risk_alloc_t7k', 'children'),
+    Input('asset_ids_risk_alloc_t7k', 'value')
+)
+def _announce_asset_t7k(val):  # noqa: D401
+    if not val:
+        return ''
+    return f"Asset ID selected {val}"

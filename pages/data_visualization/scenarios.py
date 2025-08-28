@@ -5,6 +5,11 @@ import numpy as np
 import pandas as pd
 from datetime import timedelta, datetime
 from utils.ui import html, dcc, Input, Output, State, dbc, dash
+# Local alias for ctx to satisfy static analysis (imported in utils.ui)
+try:
+    from utils.ui import ctx as _dash_ctx  # noqa: F401
+except Exception:
+    _dash_ctx = None
 from utils.accessibility import figure_to_table_html
 import plotly.express as px
 import plotly.graph_objects as go
@@ -99,8 +104,7 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                               energy_types = energy_types, energy_types_id = 'energy_types_rts',
                               asset_id = 'asset_ids_rts',
                               scenario_plot_id = 'rts_scenario_plot_notuning'):
-    dcc_tab = dcc.Tab(label=label,
-            children=[
+    tab_children = [
 
                 # dbc.Row(
                 #     dbc.Col([
@@ -116,24 +120,38 @@ def dcc_tab_scenariovisualize(label= 'RTS',
 
                 dbc.Row([
                     dbc.Col([
-                        html.Label('Select Day'),
-                        dcc.Dropdown(date_values,
-                                     id=date_values_id,
-                                     value=date_values[0],
-                                     className='dropdown-short')
+                        html.Label([
+                            'Select Day',
+                            dcc.Dropdown(
+                                date_values,
+                                id=date_values_id,
+                                value=date_values[0],
+                                className='dropdown-short'
+                            )
+                        ]),
+                        html.Div(id=f'live-{date_values_id}', className='visually-hidden', **{'aria-live':'polite', 'role':'status'})
                     ], xs=12, md=6, lg=4),
                     dbc.Col([
-                        html.Label('Select Asset Type'),
-                        dcc.RadioItems(
-                            list(energy_types),
-                            'load',
-                            id=energy_types_id,
-                            className='radioitems')
+                        html.Fieldset([
+                            html.Legend('Select Asset Type'),
+                            dcc.RadioItems(
+                                list(energy_types),
+                                'load',
+                                id=energy_types_id,
+                                className='radioitems'
+                            )
+                        ]),
+                        html.Div(id=f'live-{energy_types_id}', className='visually-hidden', **{'aria-live':'polite', 'role':'status'})
                     ], xs=12, md=6, lg=4),
                     dbc.Col([
-                        html.Label('Select Asset ID'),
-                        dcc.Dropdown(id=asset_id,
-                                     className='dropdown-long'),
+                        html.Label([
+                            'Select Asset ID',
+                            dcc.Dropdown(
+                                id=asset_id,
+                                className='dropdown-long'
+                            )
+                        ]),
+                        html.Div(id=f'live-{asset_id}', className='visually-hidden', **{'aria-live':'polite', 'role':'status'})
                     ], xs=12, md=12, lg=4),
                 ], className='controls-row'),
 
@@ -152,10 +170,8 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                         html.Div(id=f"{scenario_plot_id}-table", className='vis-table-wrapper')
                     ], open=False)
                 ]))
-            ],
-            className='tab',
-            selected_className='tab--selected')
-    return dcc_tab
+            ]
+    return html.Div(tab_children)
 
 
 html_div_scenariooverview = html.Section(children=[
@@ -165,41 +181,106 @@ html_div_scenariooverview = html.Section(children=[
     ], className='section', id='scenarios-markdown-section')
 ], className='app-content')
 
+_panel_rts = dcc_tab_scenariovisualize(label='RTS',
+                                       date_values=date_values_rts,
+                                       date_values_id='date_values_rts',
+                                       energy_types=energy_types,
+                                       energy_types_id='energy_types_rts',
+                                       asset_id='asset_ids_rts',
+                                       scenario_plot_id='rts_scenario_plot_notuning')
+_panel_t7k = dcc_tab_scenariovisualize(label='Texast7k',
+                                       date_values=date_values_t7k,
+                                       date_values_id='date_values_t7k',
+                                       energy_types=energy_types,
+                                       energy_types_id='energy_types_t7k',
+                                       asset_id='asset_ids_t7k',
+                                       scenario_plot_id='t7k_scenario_plot_notuning')
+
 html_div_scenariovisualize = html.Section(children=[
-
-                dbc.Row(
-                    dbc.Col(html.H1(children='Scenarios Visualization',
-                                    className='title', id='scenarios-title'))
-                    , justify='start', align='start', id='scenarios-title-row'),
-
-                dbc.Row(dcc.Tabs(
-                    children=[
-                        dcc_tab_scenariovisualize(label='RTS',
-                                                  date_values=date_values_rts,
-                                                  date_values_id='date_values_rts',
-                                                  energy_types=energy_types,
-                                                  energy_types_id='energy_types_rts',
-                                                  asset_id='asset_ids_rts',
-                                                  scenario_plot_id='rts_scenario_plot_notuning'),
-
-                        dcc_tab_scenariovisualize(label='Texast7k',
-                                                  date_values=date_values_t7k,
-                                                  date_values_id='date_values_t7k',
-                                                  energy_types=energy_types,
-                                                  energy_types_id='energy_types_t7k',
-                                                  asset_id='asset_ids_t7k',
-                                                  scenario_plot_id='t7k_scenario_plot_notuning')
-                    ], className='tabs'
-                ),
-                    justify='between')
-            ], className='app-content')
+    dbc.Row(
+        dbc.Col(html.H1(children='Scenarios Visualization', className='title', id='scenarios-title')),
+        justify='start', align='start', id='scenarios-title-row'
+    ),
+    html.Div([
+        html.Button('RTS', id='scenarios-tab-btn-RTS', role='tab', **{
+            'aria-selected': 'true', 'aria-controls': 'scenarios-panel-RTS', 'tabIndex': 0, 'aria-label': 'Show RTS scenarios dataset'
+        }, className='a11y-tab'),
+        html.Button('Texast7k', id='scenarios-tab-btn-Texast7k', role='tab', **{
+            'aria-selected': 'false', 'aria-controls': 'scenarios-panel-Texast7k', 'tabIndex': -1, 'aria-label': 'Show Texas 7k scenarios dataset'
+        }, className='a11y-tab'),
+    ], role='tablist', className='a11y-tablist', **{'aria-label': 'Scenario dataset selection'}),
+    html.Div(_panel_rts.children, id='scenarios-panel-RTS', role='tabpanel', **{'aria-labelledby': 'scenarios-tab-btn-RTS'}),
+    html.Div(_panel_t7k.children, id='scenarios-panel-Texast7k', role='tabpanel', **{'aria-labelledby': 'scenarios-tab-btn-Texast7k'}, style={'display': 'none'}),
+], className='app-content')
 
 # Dash Pages expects a module-level variable named 'layout'
 layout = html.Div([
     html_div_scenariooverview,
     html_div_scenariovisualize,
+    dcc.Store(id='scenarios-active-tab', data='RTS'),
     dcc.Location(id='url-scenarios', refresh=False),
 ])
+
+
+# --- Live region announcements ---
+@dash.callback(
+    Output('live-date_values_rts', 'children'),
+    Input('date_values_rts', 'value')
+)
+def _announce_day_rts(val):
+    if not val:
+        return ''
+    return f"Day selected {val}"
+
+
+@dash.callback(
+    Output('live-date_values_t7k', 'children'),
+    Input('date_values_t7k', 'value')
+)
+def _announce_day_t7k(val):
+    if not val:
+        return ''
+    return f"Day selected {val}"
+
+
+@dash.callback(
+    Output('live-energy_types_rts', 'children'),
+    Input('energy_types_rts', 'value')
+)
+def _announce_type_rts(val):
+    if not val:
+        return ''
+    return f"Asset type selected {val}"
+
+
+@dash.callback(
+    Output('live-energy_types_t7k', 'children'),
+    Input('energy_types_t7k', 'value')
+)
+def _announce_type_t7k(val):
+    if not val:
+        return ''
+    return f"Asset type selected {val}"
+
+
+@dash.callback(
+    Output('live-asset_ids_rts', 'children'),
+    Input('asset_ids_rts', 'value')
+)
+def _announce_asset_rts(val):
+    if not val:
+        return ''
+    return f"Asset ID selected {val}"
+
+
+@dash.callback(
+    Output('live-asset_ids_t7k', 'children'),
+    Input('asset_ids_t7k', 'value')
+)
+def _announce_asset_t7k(val):
+    if not val:
+        return ''
+    return f"Asset ID selected {val}"
 
 
 def build_timeseries(version, day, asset_type, asset_id):
@@ -374,6 +455,37 @@ def build_timeseries(version, day, asset_type, asset_id):
     fig.update_xaxes(dtick=3600000, tickformat='%I%p')
 
     return fig
+
+# --- Accessible tab interaction callbacks (Scenarios) ---
+@dash.callback(
+    Output('scenarios-active-tab', 'data'),
+    Input('scenarios-tab-btn-RTS', 'n_clicks'),
+    Input('scenarios-tab-btn-Texast7k', 'n_clicks'),
+    prevent_initial_call=True
+)
+def _scenarios_set_active_tab(rts_clicks, t7k_clicks):
+    try:
+        from utils.ui import ctx as _ctx  # re-import to ensure availability
+        trig = _ctx.triggered_id
+    except Exception:
+        trig = None
+    if trig == 'scenarios-tab-btn-Texast7k':
+        return 'Texast7k'
+    return 'RTS'
+
+@dash.callback(
+    Output('scenarios-panel-RTS', 'style'),
+    Output('scenarios-panel-Texast7k', 'style'),
+    Output('scenarios-tab-btn-RTS', 'aria-selected'),
+    Output('scenarios-tab-btn-Texast7k', 'aria-selected'),
+    Output('scenarios-tab-btn-RTS', 'tabIndex'),
+    Output('scenarios-tab-btn-Texast7k', 'tabIndex'),
+    Input('scenarios-active-tab', 'data')
+)
+def _scenarios_update_tab_styles(active):
+    if active == 'Texast7k':
+        return {'display': 'none'}, {}, 'false', 'true', -1, 0
+    return {}, {'display': 'none'}, 'true', 'false', 0, -1
 
 
 @dash.callback(

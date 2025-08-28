@@ -87,14 +87,28 @@ html_div_lmps = html.Section(children=[
 
                     dbc.Row([
                         dbc.Col([
-                            html.Label('Select Day'),
-                            dcc.Dropdown(date_values_t7k[:-2], id='date_values_t7k_lmps',
-                                         value=date_values_t7k[0], className='dropdown-short')
+                            html.Label([
+                                'Select Day',
+                                dcc.Dropdown(
+                                    date_values_t7k[:-2],
+                                    id='date_values_t7k_lmps',
+                                    value=date_values_t7k[0],
+                                    className='dropdown-short'
+                                )
+                            ]),
+                            html.Div(id='live-date_values_t7k_lmps', className='visually-hidden', **{'aria-live':'polite', 'role': 'status'})
                         ], xs=12, md=6, lg=4),
                         dbc.Col([
-                            html.Label('Select Hr'),
-                            dcc.Dropdown(list(range(24)), id='hr_values_t7k_lmps',
-                                         value=15, className='dropdown-short')
+                            html.Label([
+                                'Select Hr',
+                                dcc.Dropdown(
+                                    list(range(24)),
+                                    id='hr_values_t7k_lmps',
+                                    value=15,
+                                    className='dropdown-short'
+                                )
+                            ]),
+                            html.Div(id='live-hr_values_t7k_lmps', className='visually-hidden', **{'aria-live':'polite', 'role': 'status'})
                         ], xs=12, md=6, lg=3),
                     ], className='controls-row'),
 
@@ -121,6 +135,27 @@ layout = html.Section([
     html_div_lmps,
     dcc.Location(id='url-lmps', refresh=False),
 ])
+
+
+# Live region announcers for screen readers (polite updates on selection changes)
+@dash.callback(
+    Output('live-date_values_t7k_lmps', 'children'),
+    Input('date_values_t7k_lmps', 'value')
+)
+def _announce_lmp_day(val):  # noqa: D401
+    if not val:
+        return ''
+    return f"Day selected {val}"  # Short phrase for SR
+
+
+@dash.callback(
+    Output('live-hr_values_t7k_lmps', 'children'),
+    Input('hr_values_t7k_lmps', 'value')
+)
+def _announce_lmp_hour(val):  # noqa: D401
+    if val is None:
+        return ''
+    return f"Hour selected {val}"  # Short phrase for SR
 
 
 def plot_particular_hour(hr, bus_detail, line_detail):
