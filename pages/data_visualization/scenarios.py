@@ -456,6 +456,27 @@ def build_timeseries(version, day, asset_type, asset_id):
 
     return fig
 
+
+# Post-styling helper: emphasize the 'Actual-*' trace
+def _emphasize_actual_trace(fig):
+    try:
+        if not fig or not getattr(fig, 'data', None):
+            return fig
+        actual_indices = []
+        for i, tr in enumerate(fig.data):
+            name = (getattr(tr, 'name', '') or '').lower()
+            if 'actual' in name:
+                # Make Actual clearly distinguishable
+                tr.update(line=dict(dash='dash', width=max(4, getattr(getattr(tr, 'line', {}), 'width', 0) or 0)))
+                actual_indices.append(i)
+        # Draw Actual on top
+        if actual_indices:
+            order = [i for i in range(len(fig.data)) if i not in actual_indices] + actual_indices
+            fig.data = tuple(fig.data[i] for i in order)
+    except Exception:
+        pass
+    return fig
+
 # --- Accessible tab interaction callbacks (Scenarios) ---
 @dash.callback(
     Output('scenarios-active-tab', 'data'),
@@ -553,6 +574,8 @@ def update_scenario_plot(day, asset_type, asset_id, search, embed):
                 fig.update_layout(title=None)
     except Exception:
         pass
+    # Emphasize Actual trace
+    fig = _emphasize_actual_trace(fig)
     # Caption summarizing ranges
     caption = f"Scenarios plot T7K {asset_type} asset {asset_id} on {day}."
     try:
@@ -593,6 +616,8 @@ def update_scenario_plot_rts(day, asset_type, asset_id, search, embed):
                 fig.update_layout(title=None)
     except Exception:
         pass
+    # Emphasize Actual trace
+    fig = _emphasize_actual_trace(fig)
     caption = f"Scenarios plot RTS {asset_type} asset {asset_id} on {day}."
     try:
         if fig and fig.data:
