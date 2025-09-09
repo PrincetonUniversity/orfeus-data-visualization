@@ -103,7 +103,10 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                               date_values = date_values_rts, date_values_id = 'date_values_rts',
                               energy_types = energy_types, energy_types_id = 'energy_types_rts',
                               asset_id = 'asset_ids_rts',
-                              scenario_plot_id = 'rts_scenario_plot_notuning'):
+                              scenario_plot_id = 'rts_scenario_plot_notuning',
+                              highlight_toggle_id = 'rts-highlight-toggle',
+                              band_toggle_id = 'rts-band-toggle',
+                              extreme_toggle_id = 'rts-extreme-toggle'):
     tab_children = [
 
                 # dbc.Row(
@@ -155,6 +158,57 @@ def dcc_tab_scenariovisualize(label= 'RTS',
                     ], xs=12, md=12, lg=4),
                 ], className='controls-row'),
 
+                # highlight toggle
+                dbc.Row([
+                    dbc.Col([
+                        html.Label([
+                            dcc.Markdown('**Highlight Actual & Forecast**',
+                                         style={'marginRight': '8px'})
+                        ]),
+                        dbc.Checklist(
+                            id=highlight_toggle_id,
+                            options=[{'label': ' On', 'value': 'dim'}],
+                            value=['dim'],
+                            switch=True,
+                            style={'display': 'inline-block', 'marginLeft': '6px'}
+                        )
+                    ], xs=12, md=12, lg=12)
+                ], className='controls-row'),
+
+                # extreme band toggle (default off)
+                dbc.Row([
+                    dbc.Col([
+                        html.Label([
+                            dcc.Markdown('**Show Extreme Band** *(shade envelope of Top/Bottom 5%)*',
+                                         style={'marginRight': '8px'})
+                        ]),
+                        dbc.Checklist(
+                            id=extreme_toggle_id,
+                            options=[{'label': ' On', 'value': 'extreme'}],
+                            value=[],
+                            switch=True,
+                            style={'display': 'inline-block', 'marginLeft': '6px'}
+                        )
+                    ], xs=12, md=12, lg=12)
+                ], className='controls-row hidden-toggle-row'),
+
+                # percentile band toggle (default off)
+                dbc.Row([
+                    dbc.Col([
+                        html.Label([
+                            dcc.Markdown('**Show Percentile Band** *(shade 5th–95th)*',
+                                         style={'marginRight': '8px'})
+                        ]),
+                        dbc.Checklist(
+                            id=band_toggle_id,
+                            options=[{'label': ' On', 'value': 'band'}],
+                            value=[],
+                            switch=True,
+                            style={'display': 'inline-block', 'marginLeft': '6px'}
+                        )
+                    ], xs=12, md=12, lg=12)
+                ], className='controls-row hidden-toggle-row'),
+
                 # plot
                 html.Wbr(),
                 dbc.Row(dbc.Col([
@@ -187,14 +241,20 @@ _panel_rts = dcc_tab_scenariovisualize(label='RTS',
                                        energy_types=energy_types,
                                        energy_types_id='energy_types_rts',
                                        asset_id='asset_ids_rts',
-                                       scenario_plot_id='rts_scenario_plot_notuning')
+                                       scenario_plot_id='rts_scenario_plot_notuning',
+                                       highlight_toggle_id='rts-highlight-toggle',
+                                       band_toggle_id='rts-band-toggle',
+                                       extreme_toggle_id='rts-extreme-toggle')
 _panel_t7k = dcc_tab_scenariovisualize(label='Texast7k',
                                        date_values=date_values_t7k,
                                        date_values_id='date_values_t7k',
                                        energy_types=energy_types,
                                        energy_types_id='energy_types_t7k',
                                        asset_id='asset_ids_t7k',
-                                       scenario_plot_id='t7k_scenario_plot_notuning')
+                                       scenario_plot_id='t7k_scenario_plot_notuning',
+                                       highlight_toggle_id='t7k-highlight-toggle',
+                                       band_toggle_id='t7k-band-toggle',
+                                       extreme_toggle_id='t7k-extreme-toggle')
 
 html_div_scenariovisualize = html.Section(children=[
     dbc.Row(
@@ -454,7 +514,135 @@ def build_timeseries(version, day, asset_type, asset_id):
         legend_title='')
     fig.update_xaxes(dtick=3600000, tickformat='%I%p')
 
+    # Add explicit 95% and 5% percentile boundary traces for band shading
+    try:
+        fig.add_trace(go.Scatter(
+            x=date_values_7k, y=df_summary['95%'], name='95%',
+            line=dict(width=0), showlegend=False, hoverinfo='skip',
+        ))
+        fig.add_trace(go.Scatter(
+            x=date_values_7k, y=df_summary['5%'], name='5%',
+            line=dict(width=0), showlegend=False, hoverinfo='skip',
+        ))
+    except Exception:
+        pass
+
     return fig
+
+
+def _apply_percentile_band(fig, enabled: bool):
+    """Shade the area between '5%' and '95%' if enabled.
+    Relies on those traces being present in the figure."""
+    try:
+        if not enabled or not fig or not getattr(fig, 'data', None):
+            return fig
+        # Find 5% and 95% traces (first occurrence)
+        idx5 = idx95 = None
+        for i, tr in enumerate(fig.data):
+            name = (getattr(tr, 'name', '') or '').lower()
+            if idx5 is None and name.startswith('5%'):
+                idx5 = i
+            if idx95 is None and name.startswith('95%'):
+                idx95 = i
+            if idx5 is not None and idx95 is not None:
+                break
+        if idx5 is None or idx95 is None:
+            return fig
+        # Ensure 5% is drawn above 95% with fill to next y
+        fig.data[idx95].update(showlegend=False, line=dict(width=0), opacity=0.0)
+        fig.data[idx5].update(
+            fill='tonexty', fillcolor='rgba(100,100,150,0.28)',
+            line=dict(width=0), showlegend=False, opacity=1.0
+        )
+    except Exception:
+        pass
+    return fig
+
+
+def _apply_extreme_band(fig, enabled: bool):
+    """Shade the envelope between the Top 5 Percentile and Bottom 5 Percentile traces if enabled.
+    We treat the earliest 'Top 5 Percentile-' and 'Bottom 5 Percentile-' traces as boundaries.
+    """
+    try:
+        if not enabled or not fig or not getattr(fig, 'data', None):
+            return fig
+        idx_top = idx_bottom = None
+        for i, tr in enumerate(fig.data):
+            name = (getattr(tr, 'name', '') or '').lower()
+            if idx_top is None and name.startswith('top 5 percentile'):
+                idx_top = i
+            if idx_bottom is None and name.startswith('bottom 5 percentile'):
+                idx_bottom = i
+            if idx_top is not None and idx_bottom is not None:
+                break
+        if idx_top is None or idx_bottom is None:
+            return fig
+        # Ensure top comes immediately after bottom so fill='tonexty' targets the bottom trace
+        if idx_top != idx_bottom + 1:
+            data_list = list(fig.data)
+            top_trace = data_list.pop(idx_top)
+            # after popping, if top index was after bottom, bottom index stays the same; if before, bottom index shifts -1
+            if idx_top < idx_bottom:
+                idx_bottom -= 1
+            data_list.insert(idx_bottom + 1, top_trace)
+            fig.data = tuple(data_list)
+            # reset indices
+            idx_top = idx_bottom + 1
+        # Keep bottom line visible as a thin boundary (preserve its color)
+        fig.data[idx_bottom].update(
+            showlegend=False,
+            line=dict(width=max(1, getattr(getattr(fig.data[idx_bottom], 'line', {}), 'width', 0) or 1)),
+            opacity=1.0
+        )
+        # Use bottom line color as the basis for fill (fallback to Plotly blue)
+        try:
+            base_color = getattr(fig.data[idx_bottom].line, 'color', None)
+        except Exception:
+            base_color = None
+        fillcolor = _rgba_with_alpha(base_color, 0.22)
+        # Fill from top to bottom with translucent color and keep a thin top boundary (preserve its color)
+        fig.data[idx_top].update(
+            fill='tonexty', fillcolor=fillcolor,
+            line=dict(width=max(1, getattr(getattr(fig.data[idx_top], 'line', {}), 'width', 0) or 1)),
+            showlegend=False, opacity=1.0
+        )
+    except Exception:
+        pass
+    return fig
+
+
+def _rgba_with_alpha(color: str | None, alpha: float) -> str:
+    """Return an rgba(...) string with the provided alpha, based on the input color.
+    Supports '#RRGGBB', 'rgb(r,g,b)', and 'rgba(r,g,b,a)'. Fallback to Plotly blue.
+    """
+    try:
+        if not color or not isinstance(color, str):
+            return f"rgba(31,119,180,{alpha})"  # default Plotly blue
+        s = color.strip()
+        if s.startswith('rgba(') and s.endswith(')'):
+            parts = s[5:-1].split(',')
+            r, g, b = [int(float(p)) for p in parts[:3]]
+            return f"rgba({r},{g},{b},{alpha})"
+        if s.startswith('rgb(') and s.endswith(')'):
+            parts = s[4:-1].split(',')
+            r, g, b = [int(float(p)) for p in parts[:3]]
+            return f"rgba({r},{g},{b},{alpha})"
+        if s.startswith('#'):
+            hexv = s[1:]
+            if len(hexv) == 3:
+                r = int(hexv[0]*2, 16)
+                g = int(hexv[1]*2, 16)
+                b = int(hexv[2]*2, 16)
+            elif len(hexv) >= 6:
+                r = int(hexv[0:2], 16)
+                g = int(hexv[2:4], 16)
+                b = int(hexv[4:6], 16)
+            else:
+                return f"rgba(31,119,180,{alpha})"
+            return f"rgba({r},{g},{b},{alpha})"
+    except Exception:
+        pass
+    return f"rgba(31,119,180,{alpha})"
 
 
 # Post-styling helper: emphasize the 'Actual-*' trace
@@ -467,12 +655,42 @@ def _emphasize_actual_trace(fig):
             name = (getattr(tr, 'name', '') or '').lower()
             if 'actual' in name:
                 # Make Actual clearly distinguishable
-                tr.update(line=dict(dash='dash', width=max(4, getattr(getattr(tr, 'line', {}), 'width', 0) or 0)))
+                tr.update(
+                    line=dict(dash='dashdot', width=max(4, getattr(getattr(tr, 'line', {}), 'width', 0) or 0)),
+                    mode='lines+markers',
+                    marker=dict(size=5, symbol='circle-closed')
+                )
                 actual_indices.append(i)
         # Draw Actual on top
         if actual_indices:
             order = [i for i in range(len(fig.data)) if i not in actual_indices] + actual_indices
             fig.data = tuple(fig.data[i] for i in order)
+    except Exception:
+        pass
+    return fig
+
+
+def _dim_non_actual_forecast(fig, enabled: bool):
+    """When enabled, reduce opacity for all traces except Actual and Forecast."""
+    try:
+        if not enabled or not fig or not getattr(fig, 'data', None):
+            return fig
+        for tr in fig.data:
+            name = (getattr(tr, 'name', '') or '').lower()
+            if 'actual' in name or 'forecast' in name:
+                try:
+                    tr.opacity = 1.0
+                    if hasattr(tr, 'line'):
+                        lw = getattr(tr.line, 'width', None)
+                        if lw is None or lw < 3:
+                            tr.line.width = 3
+                except Exception:
+                    pass
+            else:
+                try:
+                    tr.opacity = 0.2
+                except Exception:
+                    pass
     except Exception:
         pass
     return fig
@@ -558,9 +776,12 @@ def set_asset_ids_value(energy_types_asset_ids_rts_csv):
     Input('date_values_t7k', 'value'),
     Input('energy_types_t7k', 'value'),
     Input('asset_ids_t7k', 'value'),
+    Input('t7k-highlight-toggle', 'value'),
+    Input('t7k-band-toggle', 'value'),
+    Input('t7k-extreme-toggle', 'value'),
     Input('url-scenarios', 'search'),
     State('embed-store', 'data'))
-def update_scenario_plot(day, asset_type, asset_id, search, embed):
+def update_scenario_plot(day, asset_type, asset_id, highlight_value, band_value, extreme_value, search, embed):
     fig = build_timeseries('t7k', day, asset_type, asset_id)
     try:
         if embed:
@@ -574,8 +795,16 @@ def update_scenario_plot(day, asset_type, asset_id, search, embed):
                 fig.update_layout(title=None)
     except Exception:
         pass
-    # Emphasize Actual trace
+    # Emphasize Actual trace and then optionally dim others
     fig = _emphasize_actual_trace(fig)
+    enabled = isinstance(highlight_value, (list, tuple, set)) and ('dim' in highlight_value)
+    fig = _dim_non_actual_forecast(fig, enabled)
+    # Apply percentile band if requested
+    band_enabled = isinstance(band_value, (list, tuple, set)) and ('band' in band_value)
+    fig = _apply_percentile_band(fig, band_enabled)
+    # Apply extreme envelope if requested
+    extreme_enabled = isinstance(extreme_value, (list, tuple, set)) and ('extreme' in extreme_value)
+    fig = _apply_extreme_band(fig, extreme_enabled)
     # Caption summarizing ranges
     caption = f"Scenarios plot T7K {asset_type} asset {asset_id} on {day}."
     try:
@@ -600,9 +829,12 @@ def update_scenario_plot(day, asset_type, asset_id, search, embed):
     Input('date_values_rts', 'value'),
     Input('energy_types_rts', 'value'),
     Input('asset_ids_rts', 'value'),
+    Input('rts-highlight-toggle', 'value'),
+    Input('rts-band-toggle', 'value'),
+    Input('rts-extreme-toggle', 'value'),
     Input('url-scenarios', 'search'),
     State('embed-store', 'data'))
-def update_scenario_plot_rts(day, asset_type, asset_id, search, embed):
+def update_scenario_plot_rts(day, asset_type, asset_id, highlight_value, band_value, extreme_value, search, embed):
     fig = build_timeseries('rts', day, asset_type, asset_id)
     try:
         if embed:
@@ -616,8 +848,16 @@ def update_scenario_plot_rts(day, asset_type, asset_id, search, embed):
                 fig.update_layout(title=None)
     except Exception:
         pass
-    # Emphasize Actual trace
+    # Emphasize Actual trace and then optionally dim others
     fig = _emphasize_actual_trace(fig)
+    enabled = isinstance(highlight_value, (list, tuple, set)) and ('dim' in highlight_value)
+    fig = _dim_non_actual_forecast(fig, enabled)
+    # Apply percentile band if requested
+    band_enabled = isinstance(band_value, (list, tuple, set)) and ('band' in band_value)
+    fig = _apply_percentile_band(fig, band_enabled)
+    # Apply extreme envelope if requested
+    extreme_enabled = isinstance(extreme_value, (list, tuple, set)) and ('extreme' in extreme_value)
+    fig = _apply_extreme_band(fig, extreme_enabled)
     caption = f"Scenarios plot RTS {asset_type} asset {asset_id} on {day}."
     try:
         if fig and fig.data:
