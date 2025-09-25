@@ -1,4 +1,4 @@
-# Data codebook for `data/`
+# Codebook
 
 This document describes the contents of the repository `data/` folder, how files are used by the application code, and notes about provenance and regeneration where possible. It's intended as a short codebook / README to help developers and analysts understand what each directory contains and where it is referenced in the codebase.
 
