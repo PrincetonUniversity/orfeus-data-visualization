@@ -150,4 +150,7 @@ cython_debug/
 .idea/
 
 .DS_Store
-data/
+# Ignore everything under data/ by default, but allow specific documented files
+/data/*
+!/data/CODEBOOK.md
+!/data/DATA_CODEBOOK.md
