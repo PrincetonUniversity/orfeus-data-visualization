@@ -16,7 +16,7 @@ numpy>=2.0,<3
 # Optional integrations
 dropbox>=12,<14
 tenacity>=8.3,<9
-dill>=0.3.8,<0.4
+dill>=0.3.8,<0.5
 
 # Production server
 gunicorn>=21.2,<23
