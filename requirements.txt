@@ -3,7 +3,7 @@
 
 # Web stack
 dash~=3.3
-dash-bootstrap-components==1.7.1
+dash-bootstrap-components==2.0.4
 flask>=3.0,<3.2
 flask-compress>=1.14,<1.16
 plotly>=5.22,<7
