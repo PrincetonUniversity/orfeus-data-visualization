@@ -41,6 +41,7 @@ Detailed directory descriptions
    - File format: CSV files with scenario time-series (likely one CSV per scenario or one CSV with scenario columns). Column names typically include timestamps and scenario IDs, forecasts, actuals, and summary statistics.
    - Used by: `pages/data_visualization/scenarios.py` reads these CSVs to build the scenario time-series plots, percentile calculations, and summary statistics (5%/95% etc.). The code expects these scenario CSVs to contain the ensemble traces needed for percentile and extreme envelope computations.
    - Surmised provenance: output from scenario-generation runs (ensemble simulations) — either external scenario generators or in-repo scripts that sampled model inputs.
+   - Pickles in `t7k-scens-csv/` (not used by the app): 363 `escores_<YYYY-MM-DD>.p.gz` and 363 `varios_<YYYY-MM-DD>.p.gz`, 7.1 MB in total. Like the LMP files, they are dill pickles that are bzip2-compressed despite the `.gz` name. Each holds one pandas Series. They load with pandas 2.x without the LMP workaround, but they reference `numpy.core`, which numpy 2.x deprecates; a future numpy release may stop loading them. The Scenarios page reads the `escores_*_.csv.gz` files (gzipped CSV) instead.
 
 4) `tuning_final_files/`
    - Files: several `escores_*` and `varios_*` CSVs; a `pca/` folder and a `texas7k/` folder.
@@ -60,6 +61,20 @@ Quick mapping of code to data
 - `pages/data_visualization/scenarios.py` -> reads `data/scenarios_data/*-scens-csv/` for scenario ensembles and computes percentiles/extremes.
 - `pages/data_visualization/risk_allocation.py` -> uses `reliability_cost_index_data/` and `tuning_final_files/` for allocation visuals and tuning summaries.
 - `utils/validate_lmp_data.py` -> validation helper for the LMP Parquet data under `lmps_data_visualization/`.
+
+Formats and conversion status
+-----------------------------
+Survey of the TigerData copy, 2026-11-17 (issue #1):
+
+| Folder | Size | Format | Needs conversion for the app? |
+|---|---|---|---|
+| `scenarios_data/` | 35 GB | 203,824 CSV; 6 gzipped CSV; 726 legacy pickles (not used by the app) | No |
+| `lmps_data_visualization/` | 514 MB | 362 legacy pickles (`.p.gz`, actually bzip2) | **Yes**: converted to Parquet by `scripts/lmp_migration/` |
+| `reliability_cost_index_data/` | 7.6 MB | CSV | No |
+| `tuning_final_files/` | 5.2 MB | CSV | No |
+| `Vatic_Grids/` | 2.6 MB | CSV | No |
+
+Only the LMP pickles (about 1.4% of the data) must be converted. The tree also holds 374 `.DS_Store` files (macOS folder metadata, 2.4 MB) that can be deleted.
 
 File format notes & quick inspection
 ----------------------------------
