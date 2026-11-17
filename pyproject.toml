@@ -1,0 +1,16 @@
+# Tool configuration only; the app is not packaged.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.mypy]
+python_version = "3.10"
+files = ["utils/lmp_store.py", "utils/validate_lmp_data.py", "scripts/lmp_migration/migrate_lmp_pickles.py"]
+ignore_missing_imports = true
+explicit_package_bases = true
+mypy_path = "."
+strict = true

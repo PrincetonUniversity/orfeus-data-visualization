@@ -1,0 +1,6 @@
+# Pinned environment for the one-time LMP migration on della (Python 3.9-3.12).
+# Verified in python:3.9.25-slim, matching della's /usr/bin/python3.
+pandas==2.2.3
+numpy==2.0.2
+pyarrow==17.0.0
+dill==0.4.0

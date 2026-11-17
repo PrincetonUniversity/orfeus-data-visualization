@@ -4,10 +4,6 @@ from urllib.parse import parse_qs
 
 from utils.ui import dash, dcc, html, Input, Output, State, page_registry, page_container, dbc
 from utils.config import SETTINGS
-from utils.dropbox_client import get_dropbox
-
-# Dropbox client (lazy-verified). Expose on the module for other modules if needed.
-dbx, HAS_DROPBOX = get_dropbox()
 
 app = dash.Dash(
     __name__,

@@ -7,10 +7,6 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class Settings:
-    # Dropbox
-    app_key: str | None
-    app_secret: str | None
-    refresh_token: str | None
     # Maps
     mapbox_token: str | None
     mapbox_style: str | None
@@ -32,10 +28,6 @@ def _env_int(name: str, default: int) -> int:
 def load_settings() -> Settings:
     # utils/.. -> repo root
     root_dir = Path(__file__).resolve().parents[1]
-
-    app_key = os.getenv("DROPBOX_APP_KEY")
-    app_secret = os.getenv("DROPBOX_APP_SECRET")
-    refresh_token = os.getenv("DROPBOX_REFRESH_TOKEN")
 
     mapbox_token = os.getenv("MAPBOX_TOKEN") or os.getenv("DASH_MAPBOX_TOKEN")
     mapbox_style = os.getenv("MAPBOX_STYLE")
@@ -70,9 +62,6 @@ def load_settings() -> Settings:
             pass
 
     return Settings(
-        app_key=app_key,
-        app_secret=app_secret,
-        refresh_token=refresh_token,
         mapbox_token=mapbox_token,
         mapbox_style=mapbox_style,
         port=port,
