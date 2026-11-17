@@ -12,4 +12,4 @@ RUN pip install -r requirements.txt -r requirements-dev.txt
 
 COPY . .
 
-CMD ["sh", "-c", "ruff check tests utils/lmp_store.py scripts && mypy && pytest -q"]
+CMD ["sh", "-c", "ruff check tests utils/lmp_store.py utils/validate_lmp_data.py scripts && mypy && pytest -q"]

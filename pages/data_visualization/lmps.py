@@ -1,12 +1,8 @@
 import os
-import bz2
-import gzip
 from datetime import date, timedelta, datetime
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pickle
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import n_colors
@@ -14,6 +10,7 @@ from plotly.colors import n_colors
 from utils.ui import html, dcc, Input, Output, State, ctx, dbc, dash
 from utils.accessibility import figure_to_table_html
 from utils.config import SETTINGS
+from utils.lmp_store import load_bus_line
 from inputs.inputs import date_values_t7k, bus, branch
 from utils.md import load_markdown, extract_first_h1
 markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
@@ -25,46 +22,9 @@ dash.register_page(__name__, path='/lmpplot', name='LMPs', order=3, title=LMPS_T
 PLOT_TOKEN = SETTINGS.mapbox_token
 PLOT_STYLE = SETTINGS.mapbox_style or ('light' if PLOT_TOKEN else 'open-street-map')
 LMP_DEBUG = os.getenv('LMP_DEBUG', '0').strip() in ('1', 'true', 'True', 'yes', 'on')
+# Root of the data directory (TigerData on della; the Azure Files share in production).
+LMP_DATA_ROOT = SETTINGS.root_dir / 'data'
 
-
-def _prepare_pandas_compat():
-    """Install aliases for old pandas module paths used in legacy pickles.
-
-    Some historical pickles reference 'pandas.core.indexes.numeric' which was
-    removed/reshuffled in pandas 2.x. We alias it to 'pandas.core.indexes.base'
-    so unpickling succeeds. Extend as needed for other legacy paths.
-    """
-    try:
-        import sys, types
-        import pandas as pd  # noqa: F401
-        try:
-            import pandas as pd  # type: ignore
-            import pandas.core.indexes.base as base  # type: ignore
-            # Create/refresh alias module
-            if 'pandas.core.indexes.numeric' not in sys.modules:
-                m = types.ModuleType('pandas.core.indexes.numeric')
-                sys.modules['pandas.core.indexes.numeric'] = m
-            else:
-                m = sys.modules['pandas.core.indexes.numeric']
-            # Copy base attributes
-            m.__dict__.update(base.__dict__)
-            # Provide legacy index class names expected by old pickles
-            for legacy in ('Int64Index', 'UInt64Index', 'Float64Index'):
-                try:
-                    setattr(base, legacy, pd.Index)
-                except Exception:
-                    pass
-                try:
-                    setattr(m, legacy, pd.Index)
-                except Exception:
-                    pass
-            if LMP_DEBUG:
-                print('[LMP] Installed pandas compat aliases for legacy index classes')
-        except Exception as e:
-            if LMP_DEBUG:
-                print(f'[LMP] pandas compat alias failed: {e}')
-    except Exception:
-        pass
 
 html_div_lmps_overview =  html.Section(children=[
                 html.Div([
@@ -401,103 +361,16 @@ def plot_particular_hour(hr, bus_detail, line_detail):
     return fig1, line_detail_hr_highcongest
 
 
-def _extract_bus_line(obj):
-    """Return (bus_detail_df, line_detail_df) from a pickle object with varying keys.
-
-    Accepts common variants: 'bus_detail'|'bus'|'bus_df'|'buses' and
-    'line_detail'|'line'|'line_df'|'lines'. Avoids DataFrame truthiness.
-    """
-    bus_df = None
-    for k in ("bus_detail", "bus", "bus_df", "buses"):
-        val = obj.get(k)
-        if isinstance(val, pd.DataFrame):
-            bus_df = val.reset_index()
-            break
-    line_df = None
-    for k in ("line_detail", "line", "line_df", "lines"):
-        val = obj.get(k)
-        if isinstance(val, pd.DataFrame):
-            line_df = val.reset_index()
-            break
-    if bus_df is None or line_df is None:
-        raise ValueError("Pickle missing required bus/line DataFrames")
-    return bus_df, line_df
-
-def _resolve_case_insensitive(p: str) -> str | None:
-    path = Path(p)
-    if path.exists():
-        if LMP_DEBUG:
-            print(f"[LMP] Found path: {path}")
-        return str(path)
-    parent = path.parent
+def build_lmp_plot_file(day, bus, branch):
+    """Return (bus_detail, line_detail) for a YYYY-MM-DD day, or stub data if it is unavailable."""
     try:
-        target = path.name.lower()
-        for name in os.listdir(parent):
-            if name.lower() == target:
-                cand = parent / name
-                if cand.exists():
-                    if LMP_DEBUG:
-                        print(f"[LMP] Case-insensitive resolved: {cand}")
-                    return str(cand)
-    except Exception:
-        pass
-    return None
-
-
-def build_lmp_plot_file(file_name, bus, branch):
-    df_pickle = None
-    root = str(SETTINGS.root_dir)
-    lmp_dir = os.path.join(root, 'data', 'lmps_data_visualization', 't7k_v0.4.0-a2_rsvf-20')
-    local_path = os.path.join(lmp_dir, file_name)
-    # Resolve case-insensitive if needed
-    resolved = _resolve_case_insensitive(local_path)
-    if resolved is None:
-        # Also try resolving the directory case-insensitively, then join filename again
-        dir_resolved = _resolve_case_insensitive(lmp_dir)
-        if dir_resolved is not None:
-            resolved = _resolve_case_insensitive(os.path.join(dir_resolved, file_name))
-    if LMP_DEBUG:
-        print(f"[LMP] Local path candidate: {resolved}")
-    if resolved is not None and os.path.exists(resolved):
-        _prepare_pandas_compat()
-        # Prefer pandas.read_pickle with compression=infer when reading from path
-        try:
-            df_pickle = pd.read_pickle(resolved, compression='infer')
-            if LMP_DEBUG:
-                print(f"[LMP] Loaded via pandas.read_pickle: {resolved}")
-        except Exception:
-            # Fallback to manual gzip/bz2
-            try:
-                with bz2.BZ2File(resolved, 'r') as f:
-                    df_pickle = pickle.load(f)
-                if LMP_DEBUG:
-                    print(f"[LMP] Loaded via bz2 std pickle: {resolved}")
-            except Exception:
-                try:
-                    with gzip.open(resolved, 'rb') as f:
-                        df_pickle = pickle.load(f)
-                    if LMP_DEBUG:
-                        print(f"[LMP] Loaded via gzip std pickle: {resolved}")
-                except Exception:
-                    # Final fallback using dill if available
-                    try:
-                        import dill as dill_pickle
-                        with gzip.open(resolved, 'rb') as f:
-                            df_pickle = dill_pickle.load(f)
-                        if LMP_DEBUG:
-                            print(f"[LMP] Loaded via gzip dill: {resolved}")
-                    except Exception:
-                        try:
-                            import dill as dill_pickle
-                            with bz2.BZ2File(resolved, 'r') as f:
-                                df_pickle = dill_pickle.load(f)
-                            if LMP_DEBUG:
-                                print(f"[LMP] Loaded via bz2 dill: {resolved}")
-                        except Exception:
-                            if LMP_DEBUG:
-                                print(f"[LMP] All local load attempts failed for {resolved}")
-                            df_pickle = None
-    if df_pickle is None:
+        bus_detail, line_detail = load_bus_line(LMP_DATA_ROOT, day)
+    except (ValueError, OSError) as e:
+        # ValueError: invalid day (user input); OSError: day not migrated or data not mounted
+        if LMP_DEBUG:
+            print(f"[LMP] No LMP data for day {day!r}: {type(e).__name__}")
+        bus_detail = line_detail = None
+    if bus_detail is None:
         # minimal stub
         day = date_values_t7k[0] if len(date_values_t7k) > 0 else '2018-01-02'
         # If grid data is missing (as in CI), synthesize a small, valid dataset
@@ -545,9 +418,6 @@ def build_lmp_plot_file(file_name, bus, branch):
             line_detail['To Bus Lng'] = lng_c
             line_detail['CongestionRatio'] = 0.0
             return bus_detail, line_detail
-    else:
-        # Support multiple pickle schemas
-        bus_detail, line_detail = _extract_bus_line(df_pickle)
 
     # Attempt to enrich with grid metadata; gracefully fallback if not available
     try:
@@ -600,8 +470,7 @@ def build_lmp_plot_file(file_name, bus, branch):
     Input('url-lmps', 'search'),
     State('embed-store', 'data'))
 def hourly_cost_dist_rts(date, hr, search, embed):
-    bus_detail, line_detail = build_lmp_plot_file(file_name=date + '.p.gz',
-                                                  bus=bus, branch=branch)
+    bus_detail, line_detail = build_lmp_plot_file(day=date, bus=bus, branch=branch)
     fig, _ = plot_particular_hour(hr, bus_detail, line_detail)
     if embed:
         try:

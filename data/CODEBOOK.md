@@ -8,7 +8,7 @@ Canonical storage: the data is stored in Princeton's TigerData service and is cu
 
 Overview
 --------
-- `lmps_data_visualization/` — precomputed LMP (locational marginal price) time-series and related payloads organized by dataset versions and dates. Files are named by date and appear to be compressed pickles (`.p.gz`). Used by LMP visualization pages and mapping components.
+- `lmps_data_visualization/` — Texas-7k production-cost simulation outputs, one day per directory, stored as Parquet. Used by the LMP page.
 - `reliability_cost_index_data/` — reliability and cost index outputs split by `rts` and `t7k`. Used by risk/allocation or reliability diagnostics pages.
 - `scenarios_data/` — CSV scenario exports organized into `rts-scens-csv/` and `t7k-scens-csv/`. These are the scenario CSVs read by the Scenarios visualization pages.
 - `tuning_final_files/` — CSVs and directories from model tuning and scoring runs (escores, varios, PCA outputs, Texas7k results). Used by tuning and risk allocation analyses and for cross-checking parameter sweeps.
@@ -18,10 +18,16 @@ Detailed directory descriptions
 -------------------------------
 
 1) `lmps_data_visualization/`
-   - Structure: `lmps_data_visualization/<dataset-version>/<YYYY-MM-DD>.p.gz`
-   - Example: `lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/2018-01-02.p.gz`
-   - File format: gzipped Python pickle files (commonly `.p.gz`) that likely contain pandas DataFrame(s) or dictionaries keyed by node/zone with hourly prices or precomputed plot-ready series. Open with Python and `pandas.read_pickle` (after gunzip) or `pickle`+`gzip`.
-   - Used by: `pages/data_visualization/lmps.py` (LMP maps and charts). Also consumed by utilities under `utils/` for table/figure generation (e.g., `figure_to_table_html`, `validate_lmp_pickle.py`).
+   - Structure: `lmps_data_visualization/<dataset-version>-parquet/<YYYY-MM-DD>/<table>.parquet`, plus `manifest.json` per day and `SHA256SUMS` for the dataset.
+   - Example: `lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20-parquet/2018-01-02/bus_detail.parquet`
+   - Tables per day (all indexed by `Date` and `Hour`; most also by an entity):
+     - `bus_detail` (by `Bus`): `Demand`, `Mismatch`, `LMP`. Used by the app.
+     - `line_detail` (by `Line`): `Flow`. Used by the app.
+     - `hourly_summary`, `ruc_summary`, `runtimes`, `thermal_detail` and `renew_detail` (by `Generator`), `daily_commits` (by `Generator`; columns are `Commit`, `Output` and `Reserve` for periods `'1'`..`'48'`). Kept for completeness.
+     - `manifest.json` also records the scalar `total_runtime`, the source file's SHA-256, and table shapes.
+   - File format: Parquet (zstd). Open with `pandas.read_parquet`. See `utils/lmp_store.py`.
+   - Legacy format: `<dataset-version>/<YYYY-MM-DD>.p.gz` files are dill pickles written with pandas 1.x. Despite the `.gz` name they are bzip2-compressed, and they need pandas 1.x index classes to load. `scripts/lmp_migration/` converts them to Parquet (issue #1). The app no longer reads them.
+   - Used by: `pages/data_visualization/lmps.py` (LMP maps and charts) and `utils/validate_lmp_data.py`.
    - Surmised provenance: produced by running preprocessing scripts on raw market simulation outputs (Texas-7k model outputs). These are likely derived from simulation runs or feature extraction pipelines maintained with the project.
 
 2) `reliability_cost_index_data/`
@@ -50,23 +56,20 @@ Detailed directory descriptions
 
 Quick mapping of code to data
 ----------------------------
-- `pages/data_visualization/lmps.py`  -> reads `data/lmps_data_visualization/.../*.p.gz` and `Vatic_Grids/*` for mapping and LMP plots.
+- `pages/data_visualization/lmps.py`  -> reads `data/lmps_data_visualization/<dataset>-parquet/<day>/{bus,line}_detail.parquet` and `Vatic_Grids/*` for mapping and LMP plots.
 - `pages/data_visualization/scenarios.py` -> reads `data/scenarios_data/*-scens-csv/` for scenario ensembles and computes percentiles/extremes.
 - `pages/data_visualization/risk_allocation.py` -> uses `reliability_cost_index_data/` and `tuning_final_files/` for allocation visuals and tuning summaries.
-- `utils/validate_lmp_pickle.py` -> validation helper for LMP pickles found under `lmps_data_visualization/`.
+- `utils/validate_lmp_data.py` -> validation helper for the LMP Parquet data under `lmps_data_visualization/`.
 
 File format notes & quick inspection
 ----------------------------------
-- To inspect a gzipped pickle (Python):
+- To inspect one day of LMP data (Python):
 
 ```python
-import gzip, pickle
-with gzip.open('data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/2018-01-02.p.gz', 'rb') as f:
-    obj = pickle.load(f)
-    # inspect type, keys, head
-    print(type(obj))
-    if hasattr(obj, 'keys'):
-        print(list(obj.keys())[:20])
+import pandas as pd
+day = 'data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20-parquet/2018-01-02'
+bus = pd.read_parquet(f'{day}/bus_detail.parquet')
+bus.head()
 
 # For CSVs:
 import pandas as pd
@@ -77,4 +80,4 @@ df.head()
 Provenance guidance / assumptions
 --------------------------------
 - The folder names reflect two main modeling datasets: **Texas-7k** (t7k) and **RTS-GMLC** (rts). These are synthetic grids in power-systems research. 
-- Scenario CSVs and LMP pickles are generated by the Princeton PERFORM Team's upstream simulation pipeline. 
+- Scenario CSVs and LMP data are generated by the Princeton PERFORM Team's upstream simulation pipeline. 

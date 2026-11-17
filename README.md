@@ -14,7 +14,7 @@ The canonical copy of the data is stored in Princeton's [TigerData](https://tige
 * Three grid topology files (`bus.csv`, `branch.csv`, `gen.csv`) are expected in `data/Vatic_Grids/Texas-7k/TX_Data/SourceData`.
 * Time series per-day and per-asset CSVs are expected in `data/scenarios_data` for Scenarios.
 * Four CSVs are expected in `data/reliability_cost_index_data` for Reliability Cost Index (Risk Allocation).
-* Per-day pickled data is expected in `data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20` for LMP Geographic Plots.
+* Per-day Parquet data is expected in `data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20-parquet/<YYYY-MM-DD>/` for LMP Geographic Plots. See `scripts/lmp_migration/` to convert the legacy `.p.gz` pickles.
 
 ## Runtime Environments 
 
@@ -77,10 +77,31 @@ Validate data integrity by running:
 if [ -z "$(sha256sum -c data-checksums.sha256 | grep -v 'OK$')" ]; then echo "All Valid"; fi
 ```
 
-Validate LMP `.p.gz` files (pickles) with `utils/validate_lmp_pickle.py`.
+Validate the LMP Parquet data with `utils/validate_lmp_data.py` (one day, or `--all`).
 
 ```
-python utils/validate_lmp_pickle.py data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/2018-01-02.p.gz
+python utils/validate_lmp_data.py 2018-01-02
+python utils/validate_lmp_data.py --all
+```
+
+## Tests
+
+Run lint, type checks and tests in Docker (also run in CI):
+
+```
+docker-compose -f docker-compose.test.yml run --rm --build tests
+```
+
+## Migrating the LMP data (issue #1)
+
+The legacy LMP files are dill pickles that need pandas 1.x classes to load. Convert them once, on della, with `scripts/lmp_migration/run_on_della.sh`. It creates its own virtualenv in `$HOME`, never modifies the source files, verifies every table, writes `SHA256SUMS`, and is safe to re-run:
+
+```
+export SRC=/tigerdata/PERFORM/orfeus-data-visualization/data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20
+export DST=/tigerdata/PERFORM/orfeus-data-visualization/data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20-parquet
+scripts/lmp_migration/run_on_della.sh --dry-run          # reads every file, writes nothing
+scripts/lmp_migration/run_on_della.sh --limit 3          # trial run
+scripts/lmp_migration/run_on_della.sh                    # full run (about 1 GB; stops at --max-output-gb 1.5)
 ```
 
 Check the overall health of the app by running a GET of `/healthz`.
