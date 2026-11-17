@@ -1,0 +1,7 @@
+# Test and lint tooling (installed on top of requirements.txt in Dockerfile.test).
+pytest==9.2.0
+ruff==0.17.3
+mypy==2.4.1
+pandas-stubs==2.3.3.260113
+# Reads/writes legacy LMP pickles in the migration tests
+dill==0.4.1

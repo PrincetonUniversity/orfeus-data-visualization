@@ -12,6 +12,7 @@ werkzeug>=3.0,<3.2
 # Data
 pandas>=2.2.3,<3
 numpy>=2.0,<3
+pyarrow>=17,<27
 
 # Legacy LMP pickle loading (removed once data is migrated to Parquet, issue #1)
 dill>=0.3.8,<0.5

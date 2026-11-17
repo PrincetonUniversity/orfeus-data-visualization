@@ -1,0 +1,7 @@
+# Lint, type checks and tests. Usage: docker-compose -f docker-compose.test.yml run --rm --build tests
+services:
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    network_mode: none  # tests need no network access
