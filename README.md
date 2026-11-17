@@ -8,6 +8,8 @@ The application will run without a `data` directory but will default to "Stub Mo
 
 The `data` directory need contain tuning files, grid topology files, and datasets.  They are **not** provided here.
 
+The canonical copy of the data is stored in Princeton's [TigerData](https://tigerdata.princeton.edu) service. It is currently mounted on della at `/tigerdata/PERFORM/orfeus-data-visualization/data`. Copy or mount that directory as `data/` in the repository root (or at `/app/data` in the container).
+
 * The tuning files are expected in `data/tuning_final_files`.  These are used to build asset lists and dates.
 * Three grid topology files (`bus.csv`, `branch.csv`, `gen.csv`) are expected in `data/Vatic_Grids/Texas-7k/TX_Data/SourceData`.
 * Time series per-day and per-asset CSVs are expected in `data/scenarios_data` for Scenarios.
