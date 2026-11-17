@@ -1,22 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import os
 
 import pandas as pd  # type: ignore
 
 from utils.config import SETTINGS
-from utils.dropbox_client import get_dropbox
 
 
 # Expose root dir for other modules
 ROOT_DIR: str = str(SETTINGS.root_dir)
-
-# Dropbox client, so pages can import dbx/HAS_DROPBOX from here without importing Dash app
-dbx, HAS_DROPBOX = get_dropbox()
-
 
 def process_date_column(df: pd.DataFrame, date_column: str = 'time') -> pd.DataFrame:
     """Ensure a 'time' datetime column exists.
@@ -160,14 +155,6 @@ def _stub_hourly_df(start: str, end: str, cols: List[str]) -> pd.DataFrame:
     df = pd.DataFrame(index=rng, data={c: 0.0 for c in cols})
     df = df.reset_index().rename(columns={'index': 'time'})
     return df
-
-
-def _safe_read_dropbox_csv(dbx_path: str, fallback_local: Optional[str], stub_cols: List[str],
-                           start: str, end: str) -> pd.DataFrame:
-    # Placeholder: current project primarily uses local files. Implement if Dropbox CSVs are needed.
-    if fallback_local:
-        return _safe_read_local_csv(fallback_local, stub_cols, start, end)
-    return _stub_hourly_df(start, end, stub_cols)
 
 
 def _safe_read_local_csv(local_rel_path: str, stub_cols: List[str], start: str, end: str) -> pd.DataFrame:

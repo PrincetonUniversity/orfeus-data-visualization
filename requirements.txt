@@ -13,9 +13,7 @@ werkzeug>=3.0,<3.2
 pandas>=2.2.3,<3
 numpy>=2.0,<3
 
-# Optional integrations
-dropbox>=12,<14
-tenacity>=8.3,<10
+# Legacy LMP pickle loading (removed once data is migrated to Parquet, issue #1)
 dill>=0.3.8,<0.5
 
 # Production server

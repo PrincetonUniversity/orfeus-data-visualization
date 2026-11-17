@@ -4,7 +4,7 @@ This document describes the contents of the repository `data/` folder, how files
 
 Path root: `data/`
 
-Canonical storage: the data is stored in Princeton's TigerData service and is currently mounted on della at `/tigerdata/PERFORM/orfeus-data-visualization/data`. The app reads it from `data/` in the repository root (`/app/data` in the container). The `/ORFEUS-Alice/data/...` paths in the code are a legacy Dropbox location, used only when Dropbox credentials are configured.
+Canonical storage: the data is stored in Princeton's TigerData service and is currently mounted on della at `/tigerdata/PERFORM/orfeus-data-visualization/data`. The app reads it from `data/` in the repository root (`/app/data` in the container).
 
 Overview
 --------
@@ -54,7 +54,6 @@ Quick mapping of code to data
 - `pages/data_visualization/scenarios.py` -> reads `data/scenarios_data/*-scens-csv/` for scenario ensembles and computes percentiles/extremes.
 - `pages/data_visualization/risk_allocation.py` -> uses `reliability_cost_index_data/` and `tuning_final_files/` for allocation visuals and tuning summaries.
 - `utils/validate_lmp_pickle.py` -> validation helper for LMP pickles found under `lmps_data_visualization/`.
-- `utils/dropbox_client.py` and other import layers may be used to pull or synchronize large source data externally (if Dropbox sync is configured). Dropbox (`/ORFEUS-Alice`) is a legacy location; the canonical copy is on TigerData (see above).
 
 File format notes & quick inspection
 ----------------------------------

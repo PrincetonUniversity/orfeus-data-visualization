@@ -1,4 +1,3 @@
-import io
 import os
 import glob
 import numpy as np
@@ -14,7 +13,7 @@ from utils.accessibility import figure_to_table_html
 import plotly.express as px
 import plotly.graph_objects as go
 
-from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR, dbx, HAS_DROPBOX
+from inputs.inputs import date_values_rts, date_values_t7k, energy_types, energy_types_asset_ids_rts_csv, energy_types_asset_ids_t7k_csv, ROOT_DIR
 from utils.config import SETTINGS
 from utils.md import load_markdown, extract_first_h1
 markdown_text_scenario = load_markdown('markdown', 'scenarios.md')
@@ -345,80 +344,67 @@ def _announce_asset_t7k(val):
 
 def build_timeseries(version, day, asset_type, asset_id):
     day = day.replace('-', '')
-    # Legacy Dropbox path, used only when Dropbox credentials are configured.
-    # The canonical data is stored in TigerData, currently mounted on della at
-    # /tigerdata/PERFORM/orfeus-data-visualization/data (mount or copy as ./data).
-    file_path = '/ORFEUS-Alice/data/scenarios_data/{}-scens-csv/{}/{}/{}.csv'.format(
-        version, day, asset_type, asset_id)
     df = None
-    if HAS_DROPBOX and dbx is not None:
-        try:
-            _, res = dbx.files_download(file_path)
-            with io.BytesIO(res.content) as stream:
-                df = pd.read_csv(stream, index_col=0).reset_index()
-        except Exception:
-            df = None
-    if df is None:
-        # Try local per-asset files (with and without 'notuning'),
-        # and with asset_id space/underscore variants.
-        # Build possible filename variants for the asset id
-        asset_variants = []
-        # Always consider the original string form
-        try:
-            asset_str = str(asset_id)
-        except Exception:
-            asset_str = f"{asset_id}"
-        asset_variants.append(asset_str)
-        # If numeric like 1.0, also try integer string '1'
-        try:
-            if isinstance(asset_id, (int, np.integer)):
+    # Try local per-asset files (with and without 'notuning'),
+    # and with asset_id space/underscore variants.
+    # Build possible filename variants for the asset id
+    asset_variants = []
+    # Always consider the original string form
+    try:
+        asset_str = str(asset_id)
+    except Exception:
+        asset_str = f"{asset_id}"
+    asset_variants.append(asset_str)
+    # If numeric like 1.0, also try integer string '1'
+    try:
+        if isinstance(asset_id, (int, np.integer)):
+            asset_variants.append(str(int(asset_id)))
+        elif isinstance(asset_id, (float, np.floating)):
+            if float(asset_id).is_integer():
                 asset_variants.append(str(int(asset_id)))
-            elif isinstance(asset_id, (float, np.floating)):
-                if float(asset_id).is_integer():
-                    asset_variants.append(str(int(asset_id)))
-                # Also try stripping a trailing .0 if present in string form
-                if asset_str.endswith('.0'):
-                    asset_variants.append(asset_str[:-2])
-        except Exception:
-            pass
-        # Try underscore variant for names with spaces
-        if isinstance(asset_str, str) and ' ' in asset_str:
-            asset_variants.append(asset_str.replace(' ', '_'))
-        # De-duplicate while preserving order
-        seen = set()
-        asset_variants = [x for x in asset_variants if not (x in seen or seen.add(x))]
-        found = False
-        for aid in asset_variants:
-            candidates = [
-                f"data/scenarios_data/{version}-scens-csv/{day}/{asset_type}/{aid}.csv",
-                f"data/scenarios_data/{version}-scens-csv/notuning/{day}/{asset_type}/{aid}.csv",
-                f"data/scenarios_data/{version}-scens-csv/tuning/{day}/{asset_type}/{aid}.csv",
-            ]
-            for rel in candidates:
-                local_path = os.path.join(ROOT_DIR, rel)
-                if os.path.exists(local_path):
-                    try:
-                        df = pd.read_csv(local_path, index_col=0).reset_index()
-                        found = True
-                        break
-                    except Exception:
-                        df = None
-            if found:
-                break
-        if df is None:
-            # Try PGScen directory (expects YYYY-MM-DD)
-            day_iso = f"{day[:4]}-{day[4:6]}-{day[6:8]}"
-            fig_pg = _try_build_fig_from_pgscen(version, day_iso, asset_type)
-            if fig_pg is not None:
-                return fig_pg
-            # No data available: return an annotated empty figure
-            msg = f"No data found for {asset_type}:{asset_id} on {day_iso}"
-            fig = go.Figure()
-            fig.add_annotation(text=msg, xref="paper", yref="paper",
-                               x=0.5, y=0.5, showarrow=False,
-                               font=dict(size=18))
-            fig.update_layout(title=f"{asset_id} — {day_iso}")
-            return fig
+            # Also try stripping a trailing .0 if present in string form
+            if asset_str.endswith('.0'):
+                asset_variants.append(asset_str[:-2])
+    except Exception:
+        pass
+    # Try underscore variant for names with spaces
+    if isinstance(asset_str, str) and ' ' in asset_str:
+        asset_variants.append(asset_str.replace(' ', '_'))
+    # De-duplicate while preserving order
+    seen = set()
+    asset_variants = [x for x in asset_variants if not (x in seen or seen.add(x))]
+    found = False
+    for aid in asset_variants:
+        candidates = [
+            f"data/scenarios_data/{version}-scens-csv/{day}/{asset_type}/{aid}.csv",
+            f"data/scenarios_data/{version}-scens-csv/notuning/{day}/{asset_type}/{aid}.csv",
+            f"data/scenarios_data/{version}-scens-csv/tuning/{day}/{asset_type}/{aid}.csv",
+        ]
+        for rel in candidates:
+            local_path = os.path.join(ROOT_DIR, rel)
+            if os.path.exists(local_path):
+                try:
+                    df = pd.read_csv(local_path, index_col=0).reset_index()
+                    found = True
+                    break
+                except Exception:
+                    df = None
+        if found:
+            break
+    if df is None:
+        # Try PGScen directory (expects YYYY-MM-DD)
+        day_iso = f"{day[:4]}-{day[4:6]}-{day[6:8]}"
+        fig_pg = _try_build_fig_from_pgscen(version, day_iso, asset_type)
+        if fig_pg is not None:
+            return fig_pg
+        # No data available: return an annotated empty figure
+        msg = f"No data found for {asset_type}:{asset_id} on {day_iso}"
+        fig = go.Figure()
+        fig.add_annotation(text=msg, xref="paper", yref="paper",
+                           x=0.5, y=0.5, showarrow=False,
+                           font=dict(size=18))
+        fig.update_layout(title=f"{asset_id} — {day_iso}")
+        return fig
 
     # build the list of date values
     # start from 00:00 to 23:00 on the day in local time

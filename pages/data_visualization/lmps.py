@@ -1,5 +1,4 @@
 import os
-import io
 import bz2
 import gzip
 from datetime import date, timedelta, datetime
@@ -15,7 +14,7 @@ from plotly.colors import n_colors
 from utils.ui import html, dcc, Input, Output, State, ctx, dbc, dash
 from utils.accessibility import figure_to_table_html
 from utils.config import SETTINGS
-from inputs.inputs import date_values_t7k, bus, branch, dbx, HAS_DROPBOX
+from inputs.inputs import date_values_t7k, bus, branch
 from utils.md import load_markdown, extract_first_h1
 markdown_text_lmps_overview = load_markdown('markdown', 'lmps_overview.md')
 markdown_text_lmps_plot = load_markdown('markdown', 'lmps_plot.md')
@@ -445,117 +444,59 @@ def _resolve_case_insensitive(p: str) -> str | None:
     return None
 
 
-def _load_pickle_from_bytes(byts: bytes):
-    _prepare_pandas_compat()
-    # Try bz2, then gzip, with standard pickle; fallback to dill if installed.
-    # Return None if all attempts fail.
-    try:
-        with io.BytesIO(byts) as stream:
-            with bz2.BZ2File(stream, 'r') as f:
-                return pickle.load(f)
-    except Exception as e:
-        if LMP_DEBUG:
-            print(f"[LMP] bz2 std pickle load failed: {e}")
-        pass
-    try:
-        with io.BytesIO(byts) as stream:
-            with gzip.GzipFile(fileobj=stream, mode='r') as f:
-                return pickle.load(f)
-    except Exception as e:
-        if LMP_DEBUG:
-            print(f"[LMP] gzip std pickle load failed: {e}")
-        pass
-    # dill with gzip
-    try:
-        import dill as dill_pickle  # optional fallback
-        with io.BytesIO(byts) as stream:
-            with gzip.GzipFile(fileobj=stream, mode='r') as f:
-                return dill_pickle.load(f)
-    except Exception as e:
-        if LMP_DEBUG:
-            print(f"[LMP] gzip dill load failed: {e}")
-        pass
-    # dill with bz2
-    try:
-        import dill as dill_pickle
-        with io.BytesIO(byts) as stream:
-            with bz2.BZ2File(stream, 'r') as f:
-                return dill_pickle.load(f)
-    except Exception as e:
-        if LMP_DEBUG:
-            print(f"[LMP] bz2 dill load failed: {e}")
-        return None
-
-
 def build_lmp_plot_file(file_name, bus, branch):
-    # Legacy Dropbox path, used only when Dropbox credentials are configured.
-    # The canonical data is stored in TigerData, currently mounted on della at
-    # /tigerdata/PERFORM/orfeus-data-visualization/data (mount or copy as ./data).
-    file_path = '/ORFEUS-Alice/data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/{}'.format(file_name)
     df_pickle = None
-    if HAS_DROPBOX and dbx is not None:
+    root = str(SETTINGS.root_dir)
+    lmp_dir = os.path.join(root, 'data', 'lmps_data_visualization', 't7k_v0.4.0-a2_rsvf-20')
+    local_path = os.path.join(lmp_dir, file_name)
+    # Resolve case-insensitive if needed
+    resolved = _resolve_case_insensitive(local_path)
+    if resolved is None:
+        # Also try resolving the directory case-insensitively, then join filename again
+        dir_resolved = _resolve_case_insensitive(lmp_dir)
+        if dir_resolved is not None:
+            resolved = _resolve_case_insensitive(os.path.join(dir_resolved, file_name))
+    if LMP_DEBUG:
+        print(f"[LMP] Local path candidate: {resolved}")
+    if resolved is not None and os.path.exists(resolved):
+        _prepare_pandas_compat()
+        # Prefer pandas.read_pickle with compression=infer when reading from path
         try:
-            _, res = dbx.files_download(file_path)
-            byts = res.content
-            df_pickle = _load_pickle_from_bytes(byts)
+            df_pickle = pd.read_pickle(resolved, compression='infer')
             if LMP_DEBUG:
-                print(f"[LMP] Loaded from Dropbox: {file_path}: {df_pickle is not None}")
-        except Exception as e:
-            if LMP_DEBUG:
-                print(f"[LMP] Dropbox load failed for {file_path}: {e}")
-            df_pickle = None
-    if df_pickle is None:
-        root = str(SETTINGS.root_dir)
-        lmp_dir = os.path.join(root, 'data', 'lmps_data_visualization', 't7k_v0.4.0-a2_rsvf-20')
-        local_path = os.path.join(lmp_dir, file_name)
-        # Resolve case-insensitive if needed
-        resolved = _resolve_case_insensitive(local_path)
-        if resolved is None:
-            # Also try resolving the directory case-insensitively, then join filename again
-            dir_resolved = _resolve_case_insensitive(lmp_dir)
-            if dir_resolved is not None:
-                resolved = _resolve_case_insensitive(os.path.join(dir_resolved, file_name))
-        if LMP_DEBUG:
-            print(f"[LMP] Local path candidate: {resolved}")
-        if resolved is not None and os.path.exists(resolved):
-            _prepare_pandas_compat()
-            # Prefer pandas.read_pickle with compression=infer when reading from path
+                print(f"[LMP] Loaded via pandas.read_pickle: {resolved}")
+        except Exception:
+            # Fallback to manual gzip/bz2
             try:
-                df_pickle = pd.read_pickle(resolved, compression='infer')
+                with bz2.BZ2File(resolved, 'r') as f:
+                    df_pickle = pickle.load(f)
                 if LMP_DEBUG:
-                    print(f"[LMP] Loaded via pandas.read_pickle: {resolved}")
+                    print(f"[LMP] Loaded via bz2 std pickle: {resolved}")
             except Exception:
-                # Fallback to manual gzip/bz2
                 try:
-                    with bz2.BZ2File(resolved, 'r') as f:
+                    with gzip.open(resolved, 'rb') as f:
                         df_pickle = pickle.load(f)
                     if LMP_DEBUG:
-                        print(f"[LMP] Loaded via bz2 std pickle: {resolved}")
+                        print(f"[LMP] Loaded via gzip std pickle: {resolved}")
                 except Exception:
+                    # Final fallback using dill if available
                     try:
+                        import dill as dill_pickle
                         with gzip.open(resolved, 'rb') as f:
-                            df_pickle = pickle.load(f)
+                            df_pickle = dill_pickle.load(f)
                         if LMP_DEBUG:
-                            print(f"[LMP] Loaded via gzip std pickle: {resolved}")
+                            print(f"[LMP] Loaded via gzip dill: {resolved}")
                     except Exception:
-                        # Final fallback using dill if available
                         try:
                             import dill as dill_pickle
-                            with gzip.open(resolved, 'rb') as f:
+                            with bz2.BZ2File(resolved, 'r') as f:
                                 df_pickle = dill_pickle.load(f)
                             if LMP_DEBUG:
-                                print(f"[LMP] Loaded via gzip dill: {resolved}")
+                                print(f"[LMP] Loaded via bz2 dill: {resolved}")
                         except Exception:
-                            try:
-                                import dill as dill_pickle
-                                with bz2.BZ2File(resolved, 'r') as f:
-                                    df_pickle = dill_pickle.load(f)
-                                if LMP_DEBUG:
-                                    print(f"[LMP] Loaded via bz2 dill: {resolved}")
-                            except Exception:
-                                if LMP_DEBUG:
-                                    print(f"[LMP] All local load attempts failed for {resolved}")
-                                df_pickle = None
+                            if LMP_DEBUG:
+                                print(f"[LMP] All local load attempts failed for {resolved}")
+                            df_pickle = None
     if df_pickle is None:
         # minimal stub
         day = date_values_t7k[0] if len(date_values_t7k) > 0 else '2018-01-02'
