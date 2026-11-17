@@ -488,6 +488,9 @@ def _load_pickle_from_bytes(byts: bytes):
 
 
 def build_lmp_plot_file(file_name, bus, branch):
+    # Legacy Dropbox path, used only when Dropbox credentials are configured.
+    # The canonical data is stored in TigerData, currently mounted on della at
+    # /tigerdata/PERFORM/orfeus-data-visualization/data (mount or copy as ./data).
     file_path = '/ORFEUS-Alice/data/lmps_data_visualization/t7k_v0.4.0-a2_rsvf-20/{}'.format(file_name)
     df_pickle = None
     if HAS_DROPBOX and dbx is not None:

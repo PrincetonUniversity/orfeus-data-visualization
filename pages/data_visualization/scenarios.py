@@ -345,6 +345,9 @@ def _announce_asset_t7k(val):
 
 def build_timeseries(version, day, asset_type, asset_id):
     day = day.replace('-', '')
+    # Legacy Dropbox path, used only when Dropbox credentials are configured.
+    # The canonical data is stored in TigerData, currently mounted on della at
+    # /tigerdata/PERFORM/orfeus-data-visualization/data (mount or copy as ./data).
     file_path = '/ORFEUS-Alice/data/scenarios_data/{}-scens-csv/{}/{}/{}.csv'.format(
         version, day, asset_type, asset_id)
     df = None
