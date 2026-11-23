@@ -1,5 +1,5 @@
 # Multi-arch slim Python base (Python 3.13)
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
